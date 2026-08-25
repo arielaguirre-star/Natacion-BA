@@ -24,16 +24,14 @@
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen relative overflow-x-hidden">
 
-    <!-- 1. VIDEO DE FONDO (YouTube Embed con Autoplay, Mute y Loop) -->
-    <div class="video-background">
-        <iframe 
-            src="videoFondo/natatorio olímpico.mp4" 
-            title="Natatorio Olímpico Parque Roca - Fondo"
-            frameborder="0" 
-            allow="autoplay; encrypted-media" 
-            allowfullscreen>
-        </iframe>
-    </div>
+  <!-- 1. VIDEO DE FONDO (Archivo local de la carpeta video) -->
+<div class="video-background">
+    <video autoplay loop muted playsinline class="w-full h-full object-cover">
+        <!-- Reemplaza ".mp4" por el nombre real de tu archivo -->
+        <source src="video/natatorio olímpico.mp4" type="video/mp4">
+        Tu navegador no soporta videos en HTML5.
+    </video>
+</div>
 
     <!-- 2. CAPA SUPERPUESTA (Overlay oscuro para legibilidad) -->
     <div class="fixed inset-0 bg-slate-950/75 backdrop-blur-sm -z-10"></div>
