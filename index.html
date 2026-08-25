@@ -4,33 +4,73 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Natación BA - Galería Multimedia</title>
-    <!-- Tailwind CSS desde CDN para diseño moderno y rápido -->
+    <!-- Tailwind CSS desde CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Ajuste para que el video iframe cubra el fondo del Hero Header */
+        .video-background-container {
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            height: 380px;
+        }
+        .video-background-iframe {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 100vw;
+            height: 56.25vw; /* Ratio 16:9 */
+            min-height: 100%;
+            min-width: 177.77vh;
+            transform: translate(-50%, -50%);
+            pointer-events: none; /* Evita interferir con los clics sobre el header */
+        }
+    </style>
 </head>
-<bg-slate-900 class="bg-slate-900 text-slate-100 min-h-screen">
+<body class="bg-slate-900 text-slate-100 min-h-screen">
 
-    <!-- Header -->
-    <header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <span class="text-3xl">🏊‍♂️</span>
-                <h1 class="text-2xl font-bold tracking-tight text-blue-400">Natación BA</h1>
-            </div>
+    <!-- Hero Header con Video de Fondo (Natatorio Olímpico Parque Roca) -->
+    <header class="video-background-container border-b border-slate-700 shadow-xl">
+        
+        <!-- Video embebido de YouTube como background (en bucle y silenciado) -->
+        <iframe 
+            class="video-background-iframe" 
+            src="https://www.youtube.com/embed/VPfL8v8OcjU?autoplay=1&mute=1&loop=1&playlist=VPfL8v8OcjU&controls=0&showinfo=0&rel=0&enablejsapi=1" 
+            title="natatorio olímpico parque Roca" 
+            frameborder="0" 
+            allow="autoplay; encrypted-media" 
+            allowfullscreen>
+        </iframe>
+
+        <!-- Capa de superposición para legibilidad (Overlay) -->
+        <div class="absolute inset-0 bg-slate-950/75 backdrop-blur-[2px] flex flex-col justify-between p-6 max-w-7xl mx-auto">
             
-            <!-- Buscador y Filtros -->
-            <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                <input 
-                    type="text" 
-                    id="search-swimmer" 
-                    placeholder="Buscar por nadador..." 
-                    class="bg-slate-900 border border-slate-700 text-sm rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none w-full sm:w-48"
-                >
-                <select 
-                    id="filter-tournament" 
-                    class="bg-slate-900 border border-slate-700 text-sm rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none w-full sm:w-56"
-                >
-                    <option value="">Todos los Torneos</option>
-                </select>
+            <!-- Barra Superior / Marca -->
+            <div class="flex items-center gap-3">
+                <span class="text-4xl drop-shadow">🏊‍♂️</span>
+                <div>
+                    <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight text-blue-400 drop-shadow">Natación BA</h1>
+                    <p class="text-xs md:text-sm text-slate-300">Natatorio Olímpico Parque Roca</p>
+                </div>
+            </div>
+
+            <!-- Buscador y Filtros integrados en la barra hero -->
+            <div class="bg-slate-900/90 p-4 rounded-xl border border-slate-700/80 backdrop-blur-md shadow-2xl flex flex-col sm:flex-row gap-4 items-center justify-between">
+                <h2 class="text-lg font-semibold text-slate-200 hidden md:block">Galería de Torneos</h2>
+                <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                    <input 
+                        type="text" 
+                        id="search-swimmer" 
+                        placeholder="Buscar por nadador..." 
+                        class="bg-slate-950 border border-slate-700 text-sm rounded-lg p-2.5 text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none w-full sm:w-52"
+                    >
+                    <select 
+                        id="filter-tournament" 
+                        class="bg-slate-950 border border-slate-700 text-sm rounded-lg p-2.5 text-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none w-full sm:w-60"
+                    >
+                        <option value="">Todos los Torneos</option>
+                    </select>
+                </div>
             </div>
         </div>
     </header>
