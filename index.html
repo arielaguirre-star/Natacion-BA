@@ -102,5 +102,22 @@
     <!-- Scripts -->
     <script src="data.js"></script>
     <script src="app.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const bgVideo = document.querySelector('.video-bg-container video');
+        if (bgVideo) {
+            // Asegura que esté silenciado para cumplir con la política de Autoplay
+            bgVideo.muted = true;
+            
+            // Intenta reproducir explícitamente por JS
+            const playPromise = bgVideo.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    console.log("Autoplay bloqueado o fallo de códec:", error);
+                });
+            }
+        }
+    });
+</script>
 </body>
 </html>
