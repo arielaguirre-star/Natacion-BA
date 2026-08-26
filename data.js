@@ -23,7 +23,7 @@ const mediaData = [
         id: 3,
         title: "Entrenamiento de Relevos",
         swimmer: "Equipo Masculino",
-        tournament: "Copa Metropolitana 2026",
+        tournament: "Torneo Porteños Agosto 2026",
         date: "2026-02-12",
         type: "image",
         url: "https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=800&q=80"
