@@ -2,10 +2,10 @@
 // 1. Pega aquí la API Key obtenida en api.imgbb.com
 const IMGBB_API_KEY = "ccbc65f4bea21908a11adb119c673316"; 
 
-// 2. Inicializar únicamente Firestore (Base de datos de Firebase)
+// 2. Inicializar únicamente Firestore
 const db = firebase.firestore();
 
-// --- ELEMENTOS DEL DOM (IDs exactos tomados de index.html) ---
+// --- ELEMENTOS DEL DOM ---
 const uploadForm = document.getElementById('upload-form');
 const formType = document.getElementById('form-type');
 const imageContainer = document.getElementById('image-input-container');
@@ -13,12 +13,12 @@ const videoContainer = document.getElementById('video-input-container');
 const statusMsg = document.getElementById('status-msg');
 const submitBtn = document.getElementById('submit-btn');
 
-// Elementos del Modal (Nombres exactos de tu HTML)
-const modal = document.getElementById('modal-upload');
-const openModalBtn = document.getElementById('btn-open-upload');
-const closeModalBtn = document.getElementById('btn-close-upload');
+// Elementos del Modal (Ajustados exactamente a tu HTML)
+const openModalBtn = document.getElementById('open-modal-btn');
+const closeModalBtn = document.getElementById('close-modal-btn') || document.getElementById('btn-close-upload');
+const modal = document.getElementById('upload-modal') || document.getElementById('modal-upload');
 
-// --- CONTROL DE ABRIR Y CERRAR EL FORMULARIO (MODAL) ---
+// --- CONTROL DE ABRIR Y CERRAR EL FORMULARIO ---
 if (openModalBtn && modal) {
     openModalBtn.addEventListener('click', () => {
         modal.classList.remove('hidden');
@@ -31,7 +31,7 @@ if (closeModalBtn && modal) {
     });
 }
 
-// Alternar visibilidad entre tipo Foto y tipo Video
+// Alternar entre Foto y Video
 if (formType) {
     formType.addEventListener('change', (e) => {
         if (e.target.value === 'image') {
@@ -44,7 +44,7 @@ if (formType) {
     });
 }
 
-// Función auxiliar para comprimir fotos antes de subirlas
+// Función auxiliar para comprimir fotos
 function compressImage(file, maxWidth = 1200, quality = 0.8) {
     return new Promise((resolve) => {
         const reader = new FileReader();
@@ -81,7 +81,7 @@ if (uploadForm) {
         e.preventDefault();
 
         if (IMGBB_API_KEY === "TU_API_KEY_AQUI" || !IMGBB_API_KEY) {
-            alert("Por favor ingresa tu API Key de ImgBB en la línea 4 de app.js");
+            alert("Por favor ingresa tu API Key de ImgBB en la línea 3 de app.js");
             return;
         }
 
@@ -164,7 +164,6 @@ if (uploadForm) {
                 });
             }
 
-            // Mensaje de éxito
             statusMsg.className = "text-xs text-center font-medium text-green-400";
             statusMsg.textContent = "¡Carga completada con éxito!";
 
