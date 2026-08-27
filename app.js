@@ -149,10 +149,10 @@ function compressImage(file, maxWidth = 1200, quality = 0.75) {
         reader.onerror = (error) => reject(error);
     });
 }
-
-// --- EVENTOS DEL FORMULARIO Y SUBIDA ---
+// --- MANEJO DE SUBIDA DE ARCHIVOS MÚLTIPLES ---
 uploadForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    
     submitBtn.disabled = true;
     submitBtn.classList.add('opacity-50');
     statusMsg.classList.remove('hidden', 'text-red-400', 'text-green-400');
@@ -164,42 +164,69 @@ uploadForm.addEventListener('submit', async (e) => {
     const date = document.getElementById('form-date').value;
     const type = formType.value;
 
-    let finalUrl = '';
-
     try {
         if (type === 'image') {
             const fileInput = document.getElementById('form-file');
-            if (!fileInput.files[0]) throw new Error("Selecciona una foto.");
+            const files = Array.from(fileInput.files);
 
-            statusMsg.textContent = "Comprimiendo imagen...";
-            const compressedBlob = await compressImage(fileInput.files[0]);
+            if (files.length === 0) {
+                throw new Error("Por favor selecciona al menos una foto.");
+            }
 
-            statusMsg.textContent = "Subiendo a Firebase Storage...";
-            const storageRef = storage.ref(`fotos/${Date.now()}_${fileInput.files[0].name}`);
-            const uploadTask = await storageRef.put(compressedBlob);
-            finalUrl = await uploadTask.ref.getDownloadURL();
+            if (files.length > 5) {
+                throw new Error("Solo puedes subir hasta 5 fotos en un mismo envío.");
+            }
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                statusMsg.textContent = `Procesando foto ${i + 1} de ${files.length}...`;
+
+                // 1. Compresión en navegador
+                const compressedBlob = await compressImage(file);
+
+                // 2. Subida a Firebase Storage
+                statusMsg.textContent = `Subiendo foto ${i + 1} de ${files.length} a Firebase...`;
+                const fileName = `fotos/${Date.now()}_${i}_${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
+                const storageRef = storage.ref(fileName);
+                
+                const uploadTask = await storageRef.put(compressedBlob);
+                const downloadUrl = await uploadTask.ref.getDownloadURL();
+
+                // 3. Crear registro en Firestore
+                statusMsg.textContent = `Guardando foto ${i + 1} en base de datos...`;
+                await db.collection("publicaciones").add({
+                    swimmer: swimmer,
+                    tournament: tournament,
+                    title: files.length > 1 ? `${title} (${i + 1}/${files.length})` : title,
+                    date: date,
+                    type: 'image',
+                    url: downloadUrl,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
 
         } else if (type === 'video') {
             const youtubeUrl = document.getElementById('form-youtube-url').value;
-            if (!youtubeUrl.includes('youtube') && !youtubeUrl.includes('youtu.be')) {
-                throw new Error("Por favor ingresa un enlace válido de YouTube.");
+            if (!youtubeUrl || (!youtubeUrl.includes('youtube') && !youtubeUrl.includes('youtu.be'))) {
+                throw new Error("Ingresa un enlace válido de YouTube.");
             }
-            finalUrl = youtubeUrl;
+
+            statusMsg.textContent = "Guardando video...";
+            await db.collection("publicaciones").add({
+                swimmer: swimmer,
+                tournament: tournament,
+                title: title,
+                date: date,
+                type: 'video',
+                url: youtubeUrl,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
         }
 
-        statusMsg.textContent = "Guardando metadatos...";
-        await db.collection("publicaciones").add({
-            swimmer: swimmer,
-            tournament: tournament,
-            title: title,
-            date: date,
-            type: type,
-            url: finalUrl,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-
+        // Éxito
         statusMsg.className = "text-xs text-center font-medium text-green-400";
-        statusMsg.textContent = "¡Publicación guardada con éxito!";
+        statusMsg.textContent = "¡Carga completada con éxito!";
+        
         setTimeout(() => {
             uploadForm.reset();
             modal.classList.add('hidden');
@@ -209,8 +236,9 @@ uploadForm.addEventListener('submit', async (e) => {
         }, 1500);
 
     } catch (err) {
+        console.error("Error al publicar:", err);
         statusMsg.className = "text-xs text-center font-medium text-red-400";
-        statusMsg.textContent = err.message || "Error al subir.";
+        statusMsg.textContent = err.message || "Error al conectar con Firebase. Revisa las reglas de Storage.";
         submitBtn.disabled = false;
         submitBtn.classList.remove('opacity-50');
     }
