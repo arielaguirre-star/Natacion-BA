@@ -57,8 +57,19 @@ if (formType) {
     });
 }
 
-// --- RENDERIZAR PUBLICACIONES ---
-function renderPosts(posts) {
+// --- EXTRAER ID Y MINIATURA DE YOUTUBE ---
+function getYoutubeDetails(url) {
+    let videoId = '';
+    if (url.includes('v=')) videoId = url.split('v=')[1].split('&')[0];
+    else if (url.includes('youtu.be/')) videoId = url.split('youtu.be/')[1].split('?')[0];
+    return {
+        id: videoId,
+        thumbnail: videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : ''
+    };
+}
+
+// --- RENDERIZAR CARTAS POR NADADOR ---
+function renderSwimmerCards(posts) {
     mediaGrid.innerHTML = '';
 
     if (posts.length === 0) {
@@ -68,37 +79,155 @@ function renderPosts(posts) {
 
     emptyState.classList.add('hidden');
 
+    // Agrupar publicaciones por nadador
+    const swimmersMap = {};
+
     posts.forEach(post => {
-        const card = document.createElement('div');
-        card.className = "bg-slate-900/80 border border-slate-800 rounded-xl overflow-hidden backdrop-blur-md shadow-lg flex flex-col";
+        const name = post.swimmer || 'Sin Nombre';
+        if (!swimmersMap[name]) {
+            swimmersMap[name] = {
+                name: name,
+                posts: []
+            };
+        }
+        swimmersMap[name].posts.push(post);
+    });
 
-        let mediaHTML = '';
-        if (post.type === 'image') {
-            mediaHTML = `<img src="${post.url}" alt="${post.title}" class="w-full h-56 object-cover bg-slate-950" loading="lazy">`;
-        } else if (post.type === 'video') {
-            // Extraer ID de YouTube
-            let videoId = '';
-            if (post.url.includes('v=')) videoId = post.url.split('v=')[1].split('&')[0];
-            else if (post.url.includes('youtu.be/')) videoId = post.url.split('youtu.be/')[1].split('?')[0];
-
-            mediaHTML = `<iframe class="w-full h-56" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen></iframe>`;
+    // Generar tarjeta principal para cada nadador
+    Object.values(swimmersMap).forEach(swimmer => {
+        const images = swimmer.posts.filter(p => p.type === 'image');
+        const videos = swimmer.posts.filter(p => p.type === 'video');
+        
+        // Imagen de portada para la tarjeta (usa la primera foto o la primera miniatura de video)
+        let coverUrl = 'https://via.placeholder.com/400x250?text=Sin+Media';
+        if (images.length > 0) {
+            coverUrl = images[0].url;
+        } else if (videos.length > 0) {
+            coverUrl = getYoutubeDetails(videos[0].url).thumbnail;
         }
 
+        const card = document.createElement('div');
+        card.className = "bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden backdrop-blur-md shadow-xl flex flex-col hover:border-blue-500/50 transition duration-300 cursor-pointer group";
+        
         card.innerHTML = `
-            ${mediaHTML}
-            <div class="p-4 flex-1 flex flex-col justify-between">
-                <div>
-                    <div class="flex items-center justify-between text-xs text-blue-400 font-semibold mb-1">
-                        <span>🏊‍♂️ ${post.swimmer}</span>
-                        <span>${post.date || ''}</span>
-                    </div>
-                    <h3 class="text-white font-bold text-base mb-1">${post.title}</h3>
-                    <p class="text-slate-400 text-xs">🏆 ${post.tournament}</p>
+            <div class="relative h-48 overflow-hidden bg-slate-950">
+                <img src="${coverUrl}" alt="${swimmer.name}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent"></div>
+                <div class="absolute bottom-3 left-4 right-4 flex justify-between items-end">
+                    <span class="bg-blue-600/90 text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
+                        🏊‍♂️ Nadador
+                    </span>
                 </div>
+            </div>
+            <div class="p-5 flex-1 flex flex-col justify-between">
+                <div>
+                    <h3 class="text-xl font-bold text-white group-hover:text-blue-400 transition mb-2">${swimmer.name}</h3>
+                    <div class="flex items-center gap-4 text-xs text-slate-400">
+                        <span>📸 ${images.length} fotos</span>
+                        <span>🎥 ${videos.length} videos</span>
+                    </div>
+                </div>
+                <button class="mt-4 w-full bg-slate-800 hover:bg-blue-600 text-slate-200 hover:text-white font-semibold py-2 px-4 rounded-xl text-xs transition">
+                    Ver perfil y galería
+                </button>
             </div>
         `;
 
+        // Evento para abrir el detalle del nadador
+        card.addEventListener('click', () => openSwimmerDetailModal(swimmer));
+
         mediaGrid.appendChild(card);
+    });
+}
+
+// --- MODAL DETALLE DEL NADADOR (TORNEOS Y VIDEOS) ---
+function openSwimmerDetailModal(swimmer) {
+    // Eliminar modal previo si existe
+    const oldModal = document.getElementById('swimmer-detail-modal');
+    if (oldModal) oldModal.remove();
+
+    // Agrupar fotos por Torneo
+    const tournamentsMap = {};
+    const videos = swimmer.posts.filter(p => p.type === 'video');
+
+    swimmer.posts.filter(p => p.type === 'image').forEach(post => {
+        const tournament = post.tournament || 'Torneo General';
+        if (!tournamentsMap[tournament]) tournamentsMap[tournament] = [];
+        tournamentsMap[tournament].push(post);
+    });
+
+    // Construir HTML de fotos por torneo
+    let tournamentsHTML = '';
+    Object.keys(tournamentsMap).forEach(tournament => {
+        const photos = tournamentsMap[tournament];
+        tournamentsHTML += `
+            <div class="mb-6">
+                <h4 class="text-sm font-bold text-blue-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    🏆 ${tournament}
+                </h4>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    ${photos.map(p => `
+                        <div class="group relative rounded-lg overflow-hidden bg-slate-950 aspect-square border border-slate-800">
+                            <img src="${p.url}" alt="${p.title}" class="w-full h-full object-cover group-hover:scale-110 transition duration-300">
+                            <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition p-2 flex flex-col justify-end text-[11px] text-white">
+                                <span class="font-bold truncate">${p.title}</span>
+                                <span class="text-slate-300 text-[9px]">${p.date || ''}</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    });
+
+    // Construir HTML de videos en miniatura
+    let videosHTML = '';
+    if (videos.length > 0) {
+        videosHTML = `
+            <div class="mt-8 border-t border-slate-800 pt-6">
+                <h4 class="text-sm font-bold text-red-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    🎥 Videos de YouTube
+                </h4>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    ${videos.map(v => {
+                        const yt = getYoutubeDetails(v.url);
+                        return `
+                            <div class="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden">
+                                <iframe class="w-full h-40" src="https://www.youtube.com/embed/${yt.id}" frameborder="0" allowfullscreen></iframe>
+                                <div class="p-3">
+                                    <h5 class="text-xs font-bold text-white truncate">${v.title}</h5>
+                                    <p class="text-[10px] text-slate-400">🏆 ${v.tournament}</p>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Insertar el Modal en el body
+    const modalHTML = `
+        <div id="swimmer-detail-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 relative shadow-2xl">
+                <button id="close-swimmer-modal" class="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl font-bold">✕</button>
+                
+                <div class="border-b border-slate-800 pb-4 mb-6">
+                    <h2 class="text-2xl font-black text-white">🏊‍♂️ ${swimmer.name}</h2>
+                    <p class="text-xs text-slate-400">Galería de fotos organizadas por torneos y videos multimedia</p>
+                </div>
+
+                ${tournamentsHTML || '<p class="text-xs text-slate-500">No hay fotos registradas para este nadador.</p>'}
+                ${videosHTML}
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    // Evento para cerrar modal de detalle
+    document.getElementById('close-swimmer-modal').addEventListener('click', () => {
+        document.getElementById('swimmer-detail-modal').remove();
     });
 }
 
@@ -114,7 +243,7 @@ function updateTournamentFilter(posts) {
     });
 }
 
-// --- CARGAR PUBLICACIONES DESDE FIRESTORE EN TIEMPO REAL ---
+// --- CARGAR PUBLICACIONES EN TIEMPO REAL ---
 function loadPosts() {
     db.collection("publicaciones").orderBy("createdAt", "desc").onSnapshot(snapshot => {
         allPosts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -125,7 +254,7 @@ function loadPosts() {
     });
 }
 
-// --- FILTRADO DE BÚSQUEDA Y SELECCIÓN ---
+// --- FILTRADO DE BÚSQUEDA ---
 function applyFilters() {
     const swimmerQuery = searchSwimmer.value.toLowerCase();
     const tournamentQuery = filterTournament.value;
@@ -136,7 +265,7 @@ function applyFilters() {
         return matchesSwimmer && matchesTournament;
     });
 
-    renderPosts(filtered);
+    renderSwimmerCards(filtered);
 }
 
 searchSwimmer.addEventListener('input', applyFilters);
@@ -245,5 +374,5 @@ if (uploadForm) {
     });
 }
 
-// Cargar publicaciones al iniciar la app
+// Iniciar aplicación
 loadPosts();
