@@ -63,7 +63,7 @@ function compressImage(file, maxWidth = 1200, quality = 0.8) {
 uploadForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    if (IMGBB_API_KEY === "TU_API_KEY_AQUI") {
+    if (IMGBB_API_KEY === "ccbc65f4bea21908a11adb119c673316") {
         alert("Por favor ingresa tu API Key de ImgBB en app.js");
         return;
     }
