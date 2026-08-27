@@ -1,9 +1,25 @@
-// --- CONFIGURACIÓN DE IMGBB Y FIREBASE ---
-// 1. Pega aquí la API Key obtenida en api.imgbb.com
-const IMGBB_API_KEY = "ccbc65f4bea21908a11adb119c673316"; 
+// --- CONFIGURACIÓN DE FIREBASE E IMGBB ---
 
-// 2. Inicializar únicamente Firestore
+// 1. IMPORTANTE: Reemplaza este objeto con la configuración real de tu proyecto en Firebase Console
+const firebaseConfig = {
+    apiKey: "AIzaSyCs6WLXvimzgnfl5OxfYoDU4EAEYxJxaOY",
+    authDomain: "natacionba-3b263.firebaseapp.com",
+    projectId: "natacionba-3b263",
+    storageBucket: "natacionba-3b263.firebasestorage.app",
+    messagingSenderId: "145111560917",
+    appId: "1:145111560917:web:0598f682f78f0cfe91285c"
+};
+
+// Inicializar Firebase (Solo si no ha sido inicializado antes)
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+
+// Inicializar únicamente Firestore
 const db = firebase.firestore();
+
+// 2. Tu API Key de ImgBB
+const IMGBB_API_KEY = "ccbc65f4bea21908a11adb119c673316"; 
 
 // --- ELEMENTOS DEL DOM ---
 const uploadForm = document.getElementById('upload-form');
@@ -13,10 +29,10 @@ const videoContainer = document.getElementById('video-input-container');
 const statusMsg = document.getElementById('status-msg');
 const submitBtn = document.getElementById('submit-btn');
 
-// Elementos del Modal (Ajustados exactamente a tu HTML)
+// Elementos del Modal
 const openModalBtn = document.getElementById('open-modal-btn');
-const closeModalBtn = document.getElementById('close-modal-btn') || document.getElementById('btn-close-upload');
-const modal = document.getElementById('upload-modal') || document.getElementById('modal-upload');
+const closeModalBtn = document.getElementById('close-modal-btn');
+const modal = document.getElementById('upload-modal');
 
 // --- CONTROL DE ABRIR Y CERRAR EL FORMULARIO ---
 if (openModalBtn && modal) {
@@ -81,7 +97,7 @@ if (uploadForm) {
         e.preventDefault();
 
         if (IMGBB_API_KEY === "TU_API_KEY_AQUI" || !IMGBB_API_KEY) {
-            alert("Por favor ingresa tu API Key de ImgBB en la línea 3 de app.js");
+            alert("Por favor ingresa tu API Key de ImgBB en app.js");
             return;
         }
 
