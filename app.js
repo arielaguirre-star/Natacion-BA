@@ -1,131 +1,40 @@
-// 1. REEMPLAZA CON TUS CREDENCIALES DE FIREBASE CONSOLE
-const firebaseConfig = {
-    apiKey: "AIzaSyCs6WLXvimzgnfl5OxfYoDU4EAEYxJxaOY",
-    authDomain: "natacionba-3b263.firebaseapp.co",
-    projectId: "natacionba-3b263",
-    storageBucket: "natacionba-3b263.firebasestorage.app",
-    messagingSenderId: "145111560917",
-    appId: "1:145111560917:web:0598f682f78f0cfe91285c"
-};
+// --- CONFIGURACIÓN DE IMGBB Y FIREBASE ---
+// 1. Pega aquí la API Key que obtuviste en api.imgbb.com
+const IMGBB_API_KEY = "ccbc65f4bea21908a11adb119c673316";
 
-// Inicializar Firebase
-firebase.initializeApp(firebaseConfig);
+// 2. Mantenemos Firestore (para guardar el título, fecha, nadador y el enlace de la foto)
 const db = firebase.firestore();
-const storage = firebase.storage();
 
-let allMedia = [];
-
-// DOM Elements
-const grid = document.getElementById('media-grid');
-const emptyState = document.getElementById('empty-state');
-const searchInput = document.getElementById('search-swimmer');
-const tournamentSelect = document.getElementById('filter-tournament');
-const modal = document.getElementById('upload-modal');
-const openModalBtn = document.getElementById('open-modal-btn');
-const closeModalBtn = document.getElementById('close-modal-btn');
+// Elementos del DOM
+const uploadForm = document.getElementById('upload-form');
 const formType = document.getElementById('form-type');
 const imageContainer = document.getElementById('image-input-container');
 const videoContainer = document.getElementById('video-input-container');
-const uploadForm = document.getElementById('upload-form');
 const statusMsg = document.getElementById('status-msg');
 const submitBtn = document.getElementById('submit-btn');
+const modal = document.getElementById('upload-modal');
 
-// --- Cargar publicaciones desde Firestore ---
-function loadMediaFromFirestore() {
-    db.collection("publicaciones").orderBy("date", "desc")
-        .onSnapshot((snapshot) => {
-            allMedia = [];
-            snapshot.forEach((doc) => {
-                allMedia.push({ id: doc.id, ...doc.data() });
-            });
-            updateTournamentFilter();
-            filterAndRender();
-        });
-}
-
-// --- Renderizado de tarjetas ---
-function renderMedia(items) {
-    grid.innerHTML = '';
-    if (items.length === 0) {
-        emptyState.classList.remove('hidden');
-        return;
-    }
-    emptyState.classList.add('hidden');
-
-    items.forEach(item => {
-        const card = document.createElement('div');
-        card.className = 'bg-slate-900/80 border border-slate-700/80 rounded-xl overflow-hidden shadow-xl backdrop-blur-md hover:border-blue-500/50 transition';
-
-        let mediaHTML = '';
-        if (item.type === 'image') {
-            mediaHTML = `<img src="${item.url}" alt="${item.title}" class="w-full h-52 object-cover" loading="lazy">`;
-        } else if (item.type === 'video') {
-            const embedUrl = convertToYouTubeEmbed(item.url);
-            mediaHTML = `
-                <div class="aspect-video w-full bg-black">
-                    <iframe src="${embedUrl}" class="w-full h-full" frameborder="0" allowfullscreen></iframe>
-                </div>`;
+// Alternar entre foto y video en el formulario
+if (formType) {
+    formType.addEventListener('change', (e) => {
+        if (e.target.value === 'image') {
+            imageContainer.classList.remove('hidden');
+            videoContainer.classList.add('hidden');
+        } else {
+            imageContainer.classList.add('hidden');
+            videoContainer.classList.remove('hidden');
         }
-
-        card.innerHTML = `
-            ${mediaHTML}
-            <div class="p-4">
-                <div class="flex justify-between items-start gap-2 mb-2">
-                    <h3 class="font-semibold text-lg text-slate-100">${item.title}</h3>
-                    <span class="text-xs bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-1 rounded-full uppercase">
-                        ${item.type}
-                    </span>
-                </div>
-                <p class="text-sm text-slate-300">👤 <strong>Nadador:</strong> ${item.swimmer}</p>
-                <p class="text-sm text-slate-400">🏆 <strong>Torneo:</strong> ${item.tournament}</p>
-                <p class="text-xs text-slate-500 mt-3">📅 ${new Date(item.date).toLocaleDateString('es-AR')}</p>
-            </div>
-        `;
-        grid.appendChild(card);
     });
 }
 
-// --- Filtros ---
-function filterAndRender() {
-    const textQuery = searchInput.value.toLowerCase().trim();
-    const selectedTournament = tournamentSelect.value;
-
-    const filtered = allMedia.filter(item => {
-        const matchesSwimmer = item.swimmer.toLowerCase().includes(textQuery);
-        const matchesTournament = selectedTournament === '' || item.tournament === selectedTournament;
-        return matchesSwimmer && matchesTournament;
-    });
-
-    renderMedia(filtered);
-}
-
-function updateTournamentFilter() {
-    const tourneys = [...new Set(allMedia.map(item => item.tournament))];
-    tournamentSelect.innerHTML = '<option value="">Todos los Torneos</option>';
-    tourneys.forEach(t => {
-        const opt = document.createElement('option');
-        opt.value = t; opt.textContent = t;
-        tournamentSelect.appendChild(opt);
-    });
-}
-
-// --- Transformar enlaces de YouTube normales a iframe embed ---
-function convertToYouTubeEmbed(url) {
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-    const match = url.match(regExp);
-    return (match && match[2].length === 11) 
-        ? `https://www.youtube.com/embed/${match[2]}` 
-        : url;
-}
-
-// --- REDIMENSIONAR / COMPRIMIR IMAGEN EN NAVEGADOR ---
-function compressImage(file, maxWidth = 1200, quality = 0.75) {
-    return new Promise((resolve, reject) => {
+// Función auxiliar para comprimir imágenes antes de subir
+function compressImage(file, maxWidth = 1200, quality = 0.8) {
+    return new Promise((resolve) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
-        reader.onload = (event) => {
+        reader.onload = (e) => {
             const img = new Image();
-            img.src = event.target.result;
+            img.src = e.target.result;
             img.onload = () => {
                 const canvas = document.createElement('canvas');
                 let width = img.width;
@@ -138,26 +47,32 @@ function compressImage(file, maxWidth = 1200, quality = 0.75) {
 
                 canvas.width = width;
                 canvas.height = height;
+
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
 
-                canvas.toBlob((blob) => {
-                    resolve(blob);
-                }, 'image/jpeg', quality);
+                // Convertir a base64 limpio para ImgBB
+                const base64String = canvas.toDataURL('image/jpeg', quality).split(',')[1];
+                resolve(base64String);
             };
         };
-        reader.onerror = (error) => reject(error);
     });
 }
-// --- MANEJO DE SUBIDA DE ARCHIVOS MÚLTIPLES ---
+
+// --- SUBIDA MÚLTIPLE DE FOTOS A IMGBB ---
 uploadForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    
+
+    if (IMGBB_API_KEY === "TU_API_KEY_AQUI") {
+        alert("Por favor ingresa tu API Key de ImgBB en app.js");
+        return;
+    }
+
     submitBtn.disabled = true;
     submitBtn.classList.add('opacity-50');
     statusMsg.classList.remove('hidden', 'text-red-400', 'text-green-400');
     statusMsg.classList.add('text-blue-400');
-    
+
     const swimmer = document.getElementById('form-swimmer').value;
     const tournament = document.getElementById('form-tournament').value;
     const title = document.getElementById('form-title').value;
@@ -179,21 +94,33 @@ uploadForm.addEventListener('submit', async (e) => {
 
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
-                statusMsg.textContent = `Procesando foto ${i + 1} de ${files.length}...`;
+                statusMsg.textContent = `Comprimiendo foto ${i + 1} de ${files.length}...`;
 
-                // 1. Compresión en navegador
-                const compressedBlob = await compressImage(file);
+                // 1. Comprimir foto
+                const base64Image = await compressImage(file);
 
-                // 2. Subida a Firebase Storage
-                statusMsg.textContent = `Subiendo foto ${i + 1} de ${files.length} a Firebase...`;
-                const fileName = `fotos/${Date.now()}_${i}_${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
-                const storageRef = storage.ref(fileName);
+                // 2. Subir a ImgBB
+                statusMsg.textContent = `Subiendo foto ${i + 1} de ${files.length} a ImgBB...`;
                 
-                const uploadTask = await storageRef.put(compressedBlob);
-                const downloadUrl = await uploadTask.ref.getDownloadURL();
+                const formData = new FormData();
+                formData.append("key", IMGBB_API_KEY);
+                formData.append("image", base64Image);
 
-                // 3. Crear registro en Firestore
-                statusMsg.textContent = `Guardando foto ${i + 1} en base de datos...`;
+                const response = await fetch("https://api.imgbb.com/1/upload", {
+                    method: "POST",
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.error ? result.error.message : "Error al subir a ImgBB");
+                }
+
+                const downloadUrl = result.data.url;
+
+                // 3. Guardar en la base de datos de Firestore
+                statusMsg.textContent = `Guardando datos de foto ${i + 1}...`;
                 await db.collection("publicaciones").add({
                     swimmer: swimmer,
                     tournament: tournament,
@@ -226,7 +153,7 @@ uploadForm.addEventListener('submit', async (e) => {
         // Éxito
         statusMsg.className = "text-xs text-center font-medium text-green-400";
         statusMsg.textContent = "¡Carga completada con éxito!";
-        
+
         setTimeout(() => {
             uploadForm.reset();
             modal.classList.add('hidden');
@@ -238,28 +165,8 @@ uploadForm.addEventListener('submit', async (e) => {
     } catch (err) {
         console.error("Error al publicar:", err);
         statusMsg.className = "text-xs text-center font-medium text-red-400";
-        statusMsg.textContent = err.message || "Error al conectar con Firebase. Revisa las reglas de Storage.";
+        statusMsg.textContent = err.message || "Ocurrió un error al realizar la carga.";
         submitBtn.disabled = false;
         submitBtn.classList.remove('opacity-50');
     }
 });
-
-// UI Modal Listeners
-openModalBtn.addEventListener('click', () => modal.classList.remove('hidden'));
-closeModalBtn.addEventListener('click', () => modal.classList.add('hidden'));
-
-formType.addEventListener('change', (e) => {
-    if (e.target.value === 'image') {
-        imageContainer.classList.remove('hidden');
-        videoContainer.classList.add('hidden');
-    } else {
-        imageContainer.classList.add('hidden');
-        videoContainer.classList.remove('hidden');
-    }
-});
-
-searchInput.addEventListener('input', filterAndRender);
-tournamentSelect.addEventListener('change', filterAndRender);
-
-// Inicializar
-document.addEventListener('DOMContentLoaded', loadMediaFromFirestore);
