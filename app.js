@@ -79,26 +79,20 @@ function renderSwimmerCards(posts) {
 
     emptyState.classList.add('hidden');
 
-    // Agrupar publicaciones por nadador
     const swimmersMap = {};
 
     posts.forEach(post => {
         const name = post.swimmer || 'Sin Nombre';
         if (!swimmersMap[name]) {
-            swimmersMap[name] = {
-                name: name,
-                posts: []
-            };
+            swimmersMap[name] = { name: name, posts: [] };
         }
         swimmersMap[name].posts.push(post);
     });
 
-    // Generar tarjeta principal para cada nadador
     Object.values(swimmersMap).forEach(swimmer => {
         const images = swimmer.posts.filter(p => p.type === 'image');
         const videos = swimmer.posts.filter(p => p.type === 'video');
         
-        // Imagen de portada para la tarjeta (usa la primera foto o la primera miniatura de video)
         let coverUrl = 'https://via.placeholder.com/400x250?text=Sin+Media';
         if (images.length > 0) {
             coverUrl = images[0].url;
@@ -133,20 +127,47 @@ function renderSwimmerCards(posts) {
             </div>
         `;
 
-        // Evento para abrir el detalle del nadador
         card.addEventListener('click', () => openSwimmerDetailModal(swimmer));
-
         mediaGrid.appendChild(card);
     });
 }
 
-// --- MODAL DETALLE DEL NADADOR (TORNEOS Y VIDEOS) ---
+// --- VISOR DE IMAGEN AMPLIADA (LIGHTBOX) ---
+function openImageLightbox(url, title, date) {
+    const oldLightbox = document.getElementById('image-lightbox');
+    if (oldLightbox) oldLightbox.remove();
+
+    const lightboxHTML = `
+        <div id="image-lightbox" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[60] flex flex-col items-center justify-center p-4">
+            <button id="close-lightbox" class="absolute top-4 right-6 text-white text-3xl font-bold hover:text-blue-400 transition cursor-pointer">✕</button>
+            <div class="max-w-4xl max-h-[80vh] flex flex-col items-center">
+                <img src="${url}" alt="${title}" class="max-w-full max-h-[75vh] object-contain rounded-lg border border-slate-800 shadow-2xl">
+                <div class="text-center mt-3">
+                    <h4 class="text-white text-base font-bold">${title}</h4>
+                    <p class="text-slate-400 text-xs">${date || ''}</p>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', lightboxHTML);
+
+    document.getElementById('close-lightbox').addEventListener('click', () => {
+        document.getElementById('image-lightbox').remove();
+    });
+
+    document.getElementById('image-lightbox').addEventListener('click', (e) => {
+        if (e.target.id === 'image-lightbox') {
+            document.getElementById('image-lightbox').remove();
+        }
+    });
+}
+
+// --- MODAL DETALLE DEL NADADOR ---
 function openSwimmerDetailModal(swimmer) {
-    // Eliminar modal previo si existe
     const oldModal = document.getElementById('swimmer-detail-modal');
     if (oldModal) oldModal.remove();
 
-    // Agrupar fotos por Torneo
     const tournamentsMap = {};
     const videos = swimmer.posts.filter(p => p.type === 'video');
 
@@ -156,7 +177,6 @@ function openSwimmerDetailModal(swimmer) {
         tournamentsMap[tournament].push(post);
     });
 
-    // Construir HTML de fotos por torneo
     let tournamentsHTML = '';
     Object.keys(tournamentsMap).forEach(tournament => {
         const photos = tournamentsMap[tournament];
@@ -166,12 +186,12 @@ function openSwimmerDetailModal(swimmer) {
                     🏆 ${tournament}
                 </h4>
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    ${photos.map(p => `
-                        <div class="group relative rounded-lg overflow-hidden bg-slate-950 aspect-square border border-slate-800">
+                    ${photos.map((p, index) => `
+                        <div data-photo-index="${index}" data-tournament="${tournament}" class="photo-item group relative rounded-lg overflow-hidden bg-slate-950 aspect-square border border-slate-800 cursor-pointer">
                             <img src="${p.url}" alt="${p.title}" class="w-full h-full object-cover group-hover:scale-110 transition duration-300">
                             <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition p-2 flex flex-col justify-end text-[11px] text-white">
                                 <span class="font-bold truncate">${p.title}</span>
-                                <span class="text-slate-300 text-[9px]">${p.date || ''}</span>
+                                <span class="text-slate-300 text-[9px]">🔍 Clic para ampliar</span>
                             </div>
                         </div>
                     `).join('')}
@@ -180,7 +200,6 @@ function openSwimmerDetailModal(swimmer) {
         `;
     });
 
-    // Construir HTML de videos en miniatura
     let videosHTML = '';
     if (videos.length > 0) {
         videosHTML = `
@@ -206,15 +225,14 @@ function openSwimmerDetailModal(swimmer) {
         `;
     }
 
-    // Insertar el Modal en el body
     const modalHTML = `
         <div id="swimmer-detail-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
             <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 relative shadow-2xl">
-                <button id="close-swimmer-modal" class="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl font-bold">✕</button>
+                <button id="close-swimmer-modal" class="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl font-bold cursor-pointer">✕</button>
                 
                 <div class="border-b border-slate-800 pb-4 mb-6">
                     <h2 class="text-2xl font-black text-white">🏊‍♂️ ${swimmer.name}</h2>
-                    <p class="text-xs text-slate-400">Galería de fotos organizadas por torneos y videos multimedia</p>
+                    <p class="text-xs text-slate-400">Haz clic en cualquier foto para verla en tamaño completo</p>
                 </div>
 
                 ${tournamentsHTML || '<p class="text-xs text-slate-500">No hay fotos registradas para este nadador.</p>'}
@@ -225,7 +243,17 @@ function openSwimmerDetailModal(swimmer) {
 
     document.body.insertAdjacentHTML('beforeend', modalHTML);
 
-    // Evento para cerrar modal de detalle
+    // Asignar eventos de clic a las fotos para ampliarlas
+    document.querySelectorAll('.photo-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const tName = item.getAttribute('data-tournament');
+            const idx = parseInt(item.getAttribute('data-photo-index'));
+            const photoData = tournamentsMap[tName][idx];
+            openImageLightbox(photoData.url, photoData.title, photoData.date);
+        });
+    });
+
     document.getElementById('close-swimmer-modal').addEventListener('click', () => {
         document.getElementById('swimmer-detail-modal').remove();
     });
