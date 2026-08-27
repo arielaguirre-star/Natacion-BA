@@ -1,11 +1,11 @@
 // 1. REEMPLAZA CON TUS CREDENCIALES DE FIREBASE CONSOLE
 const firebaseConfig = {
-    apiKey: "TU_API_KEY",
-    authDomain: "TU_PROJECT.firebaseapp.com",
-    projectId: "TU_PROJECT_ID",
-    storageBucket: "TU_PROJECT.appspot.com",
-    messagingSenderId: "NUMERO",
-    appId: "ID_APP"
+    apiKey: "AIzaSyCs6WLXvimzgnfl5OxfYoDU4EAEYxJxaOY",
+    authDomain: "natacionba-3b263.firebaseapp.co",
+    projectId: "natacionba-3b263",
+    storageBucket: "natacionba-3b263.firebasestorage.app",
+    messagingSenderId: "145111560917",
+    appId: "1:145111560917:web:0598f682f78f0cfe91285c"
 };
 
 // Inicializar Firebase
