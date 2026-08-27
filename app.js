@@ -1,22 +1,24 @@
 // --- CONFIGURACIÓN DE IMGBB Y FIREBASE ---
-// 1. Pega aquí la API Key que obtuviste en api.imgbb.com
-const IMGBB_API_KEY = "ccbc65f4bea21908a11adb119c673316";
+// 1. Pega aquí la API Key obtenida en api.imgbb.com
+const IMGBB_API_KEY = "ccbc65f4bea21908a11adb119c673316"; 
 
-// 2. Inicializar Firestore (Base de datos)
+// 2. Inicializar únicamente Firestore (Base de datos de Firebase)
 const db = firebase.firestore();
 
-// Elementos del DOM
+// --- ELEMENTOS DEL DOM (IDs exactos tomados de index.html) ---
 const uploadForm = document.getElementById('upload-form');
 const formType = document.getElementById('form-type');
 const imageContainer = document.getElementById('image-input-container');
 const videoContainer = document.getElementById('video-input-container');
 const statusMsg = document.getElementById('status-msg');
 const submitBtn = document.getElementById('submit-btn');
-const modal = document.getElementById('upload-modal');
-const openModalBtn = document.getElementById('open-modal-btn'); // Botón "Cargar Contenido"
-const closeModalBtn = document.getElementById('close-modal-btn'); // Botón "Cancelar/X"
 
-// --- CONTROL DEL MODAL (ABRIR Y CERRAR FORMULARIO) ---
+// Elementos del Modal (Nombres exactos de tu HTML)
+const modal = document.getElementById('modal-upload');
+const openModalBtn = document.getElementById('btn-open-upload');
+const closeModalBtn = document.getElementById('btn-close-upload');
+
+// --- CONTROL DE ABRIR Y CERRAR EL FORMULARIO (MODAL) ---
 if (openModalBtn && modal) {
     openModalBtn.addEventListener('click', () => {
         modal.classList.remove('hidden');
@@ -29,7 +31,7 @@ if (closeModalBtn && modal) {
     });
 }
 
-// Alternar entre tipo Foto y Video en el formulario
+// Alternar visibilidad entre tipo Foto y tipo Video
 if (formType) {
     formType.addEventListener('change', (e) => {
         if (e.target.value === 'image') {
@@ -42,7 +44,7 @@ if (formType) {
     });
 }
 
-// Función auxiliar para comprimir imágenes antes de enviar a ImgBB
+// Función auxiliar para comprimir fotos antes de subirlas
 function compressImage(file, maxWidth = 1200, quality = 0.8) {
     return new Promise((resolve) => {
         const reader = new FileReader();
@@ -79,7 +81,7 @@ if (uploadForm) {
         e.preventDefault();
 
         if (IMGBB_API_KEY === "TU_API_KEY_AQUI" || !IMGBB_API_KEY) {
-            alert("Por favor ingresa tu API Key de ImgBB en app.js");
+            alert("Por favor ingresa tu API Key de ImgBB en la línea 4 de app.js");
             return;
         }
 
