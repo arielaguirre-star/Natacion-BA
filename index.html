@@ -4,120 +4,129 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Natación BA - Galería Multimedia</title>
-    <!-- Tailwind CSS desde CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <style>
-        /* CSS limpio para Video de Fondo en HTML5 */
         .video-bg-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            z-index: -2;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            overflow: hidden; z-index: -2;
         }
-
         .video-bg-container video {
-            min-width: 100%;
-            min-height: 100%;
-            width: auto;
-            height: auto;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+            min-width: 100%; min-height: 100%; width: auto; height: auto;
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             object-fit: cover;
         }
-
         .video-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(2, 6, 23, 0.75); /* Slate 950 al 75% */
-            backdrop-filter: blur(4px);
-            z-index: -1;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(2, 6, 23, 0.80); backdrop-filter: blur(4px); z-index: -1;
         }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen relative overflow-x-hidden">
 
-    <!-- 1. CONTENEDOR DEL VIDEO DE FONDO -->
+    <!-- Video de Fondo -->
     <div class="video-bg-container">
         <video autoplay loop muted playsinline preload="auto">
-            <source src="./videoFondo/natatorio.h264" type="video/mp4">
-            Tu navegador no soporta videos en HTML5.
+            <source src="videoFondo/natatorio.mp4" type="video/mp4">
         </video>
     </div>
-
-    <!-- 2. CAPA SUPERPUESTA (Overlay de oscurecimiento) -->
     <div class="video-overlay"></div>
 
-    <!-- 3. CONTENIDO PRINCIPAL DE LA PÁGINA -->
     <!-- Header -->
-    <header class="bg-slate-900/80 backdrop-blur-md border-b border-slate-700/60 sticky top-0 z-50">
+    <header class="bg-slate-900/80 backdrop-blur-md border-b border-slate-700/60 sticky top-0 z-40">
         <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
             <div class="flex items-center gap-3">
                 <span class="text-3xl">🏊‍♂️</span>
                 <div>
-                    <h1 class="text-2xl font-bold tracking-tight text-blue-400">Natación BA</h1>
+                    <h1 class="text-2xl font-bold text-blue-400">Natación BA</h1>
                     <p class="text-xs text-slate-400">Natatorio Olímpico Parque Roca</p>
                 </div>
             </div>
             
-            <!-- Buscador y Filtros -->
-            <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                <input 
-                    type="text" 
-                    id="search-swimmer" 
-                    placeholder="Buscar por nadador..." 
-                    class="bg-slate-900/90 border border-slate-700 text-sm rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none w-full sm:w-48 text-white placeholder-slate-400"
-                >
-                <select 
-                    id="filter-tournament" 
-                    class="bg-slate-900/90 border border-slate-700 text-sm rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none w-full sm:w-56 text-white"
-                >
+            <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-center">
+                <input type="text" id="search-swimmer" placeholder="Buscar nadador..." class="bg-slate-900/90 border border-slate-700 text-sm rounded-lg p-2.5 text-white w-full sm:w-44">
+                <select id="filter-tournament" class="bg-slate-900/90 border border-slate-700 text-sm rounded-lg p-2.5 text-white w-full sm:w-48">
                     <option value="">Todos los Torneos</option>
                 </select>
+                
+                <!-- Botón Abrir Modal de Carga -->
+                <button id="open-modal-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-medium text-sm px-4 py-2.5 rounded-lg transition w-full sm:w-auto whitespace-nowrap">
+                    ➕ Cargar Contenido
+                </button>
             </div>
         </div>
     </header>
 
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 py-8 relative z-10">
-        <!-- Galería Grid -->
-        <div id="media-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <!-- Renderizado dinámico vía JS -->
-        </div>
-
-        <!-- Estado Vacío -->
+        <div id="media-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
         <div id="empty-state" class="hidden text-center py-16 bg-slate-900/60 rounded-xl border border-slate-800 backdrop-blur-md">
-            <p class="text-slate-300 text-lg">No se encontraron fotos o videos con los filtros seleccionados.</p>
+            <p class="text-slate-300 text-lg">No se encontraron publicaciones.</p>
         </div>
     </main>
 
-    <!-- Scripts -->
-    <script src="data.js"></script>
+    <!-- MODAL DE CARGA -->
+    <div id="upload-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg p-6 relative shadow-2xl">
+            <button id="close-modal-btn" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl">✕</button>
+            <h2 class="text-xl font-bold text-blue-400 mb-4">Añadir Foto o Video</h2>
+
+            <form id="upload-form" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Nombre del Nadador</label>
+                    <input type="text" id="form-swimmer" required placeholder="Ej: Lucas Gómez" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Torneo</label>
+                    <input type="text" id="form-tournament" required placeholder="Ej: Copa Metropolitana 2026" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Título</label>
+                        <input type="text" id="form-title" required placeholder="Ej: 100m Libre" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Fecha</label>
+                        <input type="date" id="form-date" required class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Tipo de Contenido</label>
+                    <select id="form-type" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
+                        <option value="image">📸 Foto (.jpg / .png)</option>
+                        <option value="video">🎥 Video de YouTube</option>
+                    </select>
+                </div>
+
+                <!-- Campo dinámico: Imagen -->
+                <div id="image-input-container">
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Seleccionar Foto (se comprimirá automáticamente)</label>
+                    <input type="file" id="form-file" accept="image/jpeg, image/png" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-300 file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:bg-blue-600 file:text-white">
+                </div>
+
+                <!-- Campo dinámico: Video YouTube -->
+                <div id="video-input-container" class="hidden">
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Enlace de YouTube</label>
+                    <input type="url" id="form-youtube-url" placeholder="https://www.youtube.com/watch?v=..." class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
+                </div>
+
+                <!-- Barra de Progreso / Estado -->
+                <div id="status-msg" class="text-xs text-center font-medium hidden"></div>
+
+                <button type="submit" id="submit-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-lg transition mt-2">
+                    Publicar
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- SDKs Compatibles de Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
+
     <script src="app.js"></script>
-    <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const bgVideo = document.querySelector('.video-bg-container video');
-        if (bgVideo) {
-            // Asegura que esté silenciado para cumplir con la política de Autoplay
-            bgVideo.muted = true;
-            
-            // Intenta reproducir explícitamente por JS
-            const playPromise = bgVideo.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(error => {
-                    console.log("Autoplay bloqueado o fallo de códec:", error);
-                });
-            }
-        }
-    });
-</script>
 </body>
 </html>
