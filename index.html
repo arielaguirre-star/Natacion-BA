@@ -64,63 +64,64 @@
         </div>
     </main>
 
-    <!-- MODAL DE CARGA -->
-    <div id="upload-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg p-6 relative shadow-2xl">
-            <button id="close-modal-btn" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl">✕</button>
-            <h2 class="text-xl font-bold text-blue-400 mb-4">Añadir Foto o Video</h2>
+ <!-- MODAL DE CARGA -->
+<div id="upload-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg p-6 relative shadow-2xl">
+        <button id="close-modal-btn" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl">✕</button>
+        <h2 class="text-xl font-bold text-blue-400 mb-4">Añadir Foto(s) o Video</h2>
 
-            <form id="upload-form" class="space-y-4">
+        <form id="upload-form" class="space-y-4">
+            <div>
+                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Nombre del Nadador</label>
+                <input type="text" id="form-swimmer" required placeholder="Ej: Indiana Aguirre" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Torneo</label>
+                <input type="text" id="form-tournament" required placeholder="Ej: Nacional de San Juan 2025" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
                 <div>
-                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Nombre del Nadador</label>
-                    <input type="text" id="form-swimmer" required placeholder="Ej: Lucas Gómez" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Título / Estilo</label>
+                    <input type="text" id="form-title" required placeholder="Ej: 50 pecho" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
                 </div>
-
                 <div>
-                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Torneo</label>
-                    <input type="text" id="form-tournament" required placeholder="Ej: Copa Metropolitana 2026" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Fecha</label>
+                    <input type="date" id="form-date" required class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
                 </div>
+            </div>
 
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Título</label>
-                        <input type="text" id="form-title" required placeholder="Ej: 100m Libre" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Fecha</label>
-                        <input type="date" id="form-date" required class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
-                    </div>
-                </div>
+            <div>
+                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Tipo de Contenido</label>
+                <select id="form-type" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
+                    <option value="image">📸 Fotos (Máximo 5 a la vez)</option>
+                    <option value="video">🎥 Video de YouTube</option>
+                </select>
+            </div>
 
-                <div>
-                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Tipo de Contenido</label>
-                    <select id="form-type" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
-                        <option value="image">📸 Foto (.jpg / .png)</option>
-                        <option value="video">🎥 Video de YouTube</option>
-                    </select>
-                </div>
+            <!-- Campo de Selección Múltiple -->
+            <div id="image-input-container">
+                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Seleccionar Fotos (Hasta 5)</label>
+                <input type="file" id="form-file" accept="image/jpeg, image/png" multiple class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-300 file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:bg-blue-600 file:text-white">
+                <p class="text-[10px] text-slate-500 mt-1">Se comprimirán automáticamente antes de subir.</p>
+            </div>
 
-                <!-- Campo dinámico: Imagen -->
-                <div id="image-input-container">
-                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Seleccionar Foto (se comprimirá automáticamente)</label>
-                    <input type="file" id="form-file" accept="image/jpeg, image/png" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-300 file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:bg-blue-600 file:text-white">
-                </div>
+            <!-- Campo dinámico: Video YouTube -->
+            <div id="video-input-container" class="hidden">
+                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Enlace de YouTube</label>
+                <input type="url" id="form-youtube-url" placeholder="https://www.youtube.com/watch?v=..." class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
+            </div>
 
-                <!-- Campo dinámico: Video YouTube -->
-                <div id="video-input-container" class="hidden">
-                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Enlace de YouTube</label>
-                    <input type="url" id="form-youtube-url" placeholder="https://www.youtube.com/watch?v=..." class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
-                </div>
+            <!-- Estado / Progreso de Carga -->
+            <div id="status-msg" class="text-xs text-center font-medium hidden"></div>
 
-                <!-- Barra de Progreso / Estado -->
-                <div id="status-msg" class="text-xs text-center font-medium hidden"></div>
-
-                <button type="submit" id="submit-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-lg transition mt-2">
-                    Publicar
-                </button>
-            </form>
-        </div>
+            <button type="submit" id="submit-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-lg transition mt-2">
+                Publicar
+            </button>
+        </form>
     </div>
+</div> </div>
 
     <!-- SDKs Compatibles de Firebase -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
