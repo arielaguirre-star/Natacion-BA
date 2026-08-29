@@ -27,7 +27,22 @@ const LISTA_TORNEOS = [
     "Metro 5", "Metro 6", "Metro 7", "Metro 8", 
     "Sprint primavera", "Sprint verano", "Porteño", "Nacional", "La pampa"
 ];
+// --- NORMALIZADOR DE TORNEOS VIEJOS Y NUEVOS ---
+function normalizeTournamentName(rawName) {
+    if (!rawName) return "Torneo General";
+    
+    // Limpieza de texto (quitar espacios de más y pasar a minúsculas para comparar)
+    const cleanRaw = rawName.toString().trim().toLowerCase().replace(/\s+/g, ' ');
 
+    // Buscar coincidencia exacta o aproximada en la lista oficial
+    const match = LISTA_TORNEOS.find(officialName => {
+        const cleanOfficial = officialName.toLowerCase();
+        return cleanRaw === cleanOfficial || cleanRaw.replace(/\s+/g, '') === cleanOfficial.replace(/\s+/g, '');
+    });
+
+    // Si coincide con alguno oficial lo devuelve estandarizado, si no, mantiene el nombre original limpio
+    return match || rawName.trim();
+}
 // --- ELEMENTOS DEL DOM ---
 const mediaGrid = document.getElementById('media-grid');
 const emptyState = document.getElementById('empty-state');
