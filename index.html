@@ -76,10 +76,26 @@
                 <input type="text" id="form-swimmer" required placeholder="Ej: Indiana Aguirre" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
             </div>
 
-            <div>
-                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Torneo</label>
-                <input type="text" id="form-tournament" required placeholder="Ej: Nacional de San Juan 2025" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
-            </div>
+           <!-- Campo Torneo (Menú desplegable) -->
+<div>
+    <label class="block text-xs font-semibold text-slate-300 mb-1">Torneo / Competencia</label>
+    <select id="form-tournament" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500">
+        <option value="" disabled selected>Selecciona un torneo</option>
+        <option value="Metro 1">Metro 1</option>
+        <option value="Metro 2">Metro 2</option>
+        <option value="Metro 3">Metro 3</option>
+        <option value="Metro 4">Metro 4</option>
+        <option value="Metro 5">Metro 5</option>
+        <option value="Metro 6">Metro 6</option>
+        <option value="Metro 7">Metro 7</option>
+        <option value="Metro 8">Metro 8</option>
+        <option value="Sprint primavera">Sprint primavera</option>
+        <option value="Sprint verano">Sprint verano</option>
+        <option value="Porteño">Porteño</option>
+        <option value="Nacional">Nacional</option>
+        <option value="La pampa">La pampa</option>
+    </select>
+</div>
 
             <div class="grid grid-cols-2 gap-3">
                 <div>
