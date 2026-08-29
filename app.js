@@ -25,7 +25,7 @@ const IMGBB_API_KEY = "ccbc65f4bea21908a11adb119c673316";
 const LISTA_TORNEOS = [
     "Metro 1", "Metro 2", "Metro 3", "Metro 4", 
     "Metro 5", "Metro 6", "Metro 7", "Metro 8", 
-    "Sprint primavera", "Sprint verano", "Porteño", "Nacional", "La pampa"
+    "Sprint primavera", "Sprint verano", "Porteño", "Nacional", "La pampa", "Internacional"
 ];
 // --- NORMALIZADOR DE TORNEOS VIEJOS Y NUEVOS ---
 function normalizeTournamentName(rawName) {
