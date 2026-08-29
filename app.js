@@ -21,11 +21,19 @@ const db = firebase.firestore();
 // 2. Tu API Key de ImgBB
 const IMGBB_API_KEY = "ccbc65f4bea21908a11adb119c673316"; 
 
+// LISTA FIJA DE TORNEOS PERMITIDOS
+const LISTA_TORNEOS = [
+    "Metro 1", "Metro 2", "Metro 3", "Metro 4", 
+    "Metro 5", "Metro 6", "Metro 7", "Metro 8", 
+    "Sprint primavera", "Sprint verano", "Porteño", "Nacional", "La pampa"
+];
+
 // --- ELEMENTOS DEL DOM ---
 const mediaGrid = document.getElementById('media-grid');
 const emptyState = document.getElementById('empty-state');
 const searchSwimmer = document.getElementById('search-swimmer');
 const filterTournament = document.getElementById('filter-tournament');
+
 const uploadForm = document.getElementById('upload-form');
 const formType = document.getElementById('form-type');
 const imageContainer = document.getElementById('image-input-container');
@@ -33,18 +41,16 @@ const videoContainer = document.getElementById('video-input-container');
 const statusMsg = document.getElementById('status-msg');
 const submitBtn = document.getElementById('submit-btn');
 
-// Elementos del Modal
 const openModalBtn = document.getElementById('open-modal-btn');
 const closeModalBtn = document.getElementById('close-modal-btn');
 const modal = document.getElementById('upload-modal');
 
-let allPosts = []; // Guardar publicaciones en memoria para filtrado rápido
+let allPosts = []; 
 
-// --- CONTROL DE ABRIR Y CERRAR EL FORMULARIO ---
+// --- CONTROL DE MODAL DE CARGA ---
 if (openModalBtn && modal) openModalBtn.addEventListener('click', () => modal.classList.remove('hidden'));
 if (closeModalBtn && modal) closeModalBtn.addEventListener('click', () => modal.classList.add('hidden'));
 
-// Alternar entre Foto y Video
 if (formType) {
     formType.addEventListener('change', (e) => {
         if (e.target.value === 'image') {
@@ -243,7 +249,6 @@ function openSwimmerDetailModal(swimmer) {
 
     document.body.insertAdjacentHTML('beforeend', modalHTML);
 
-    // Asignar eventos de clic a las fotos para ampliarlas
     document.querySelectorAll('.photo-item').forEach(item => {
         item.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -260,10 +265,9 @@ function openSwimmerDetailModal(swimmer) {
 }
 
 // --- ACTUALIZAR FILTRO DE TORNEOS ---
-function updateTournamentFilter(posts) {
-    const tournaments = [...new Set(posts.map(p => p.tournament).filter(Boolean))];
+function updateTournamentFilter() {
     filterTournament.innerHTML = '<option value="">Todos los Torneos</option>';
-    tournaments.forEach(t => {
+    LISTA_TORNEOS.forEach(t => {
         const option = document.createElement('option');
         option.value = t;
         option.textContent = t;
@@ -273,9 +277,9 @@ function updateTournamentFilter(posts) {
 
 // --- CARGAR PUBLICACIONES EN TIEMPO REAL ---
 function loadPosts() {
+    updateTournamentFilter();
     db.collection("publicaciones").orderBy("createdAt", "desc").onSnapshot(snapshot => {
         allPosts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        updateTournamentFilter(allPosts);
         applyFilters();
     }, err => {
         console.error("Error al cargar publicaciones:", err);
@@ -344,6 +348,13 @@ if (uploadForm) {
         const title = document.getElementById('form-title').value;
         const date = document.getElementById('form-date').value;
         const type = formType.value;
+
+        if (!tournament) {
+            alert("Por favor selecciona un torneo de la lista.");
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('opacity-50');
+            return;
+        }
 
         try {
             if (type === 'image') {
