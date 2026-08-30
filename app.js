@@ -27,22 +27,108 @@ const LISTA_TORNEOS = [
     "Metro 5", "Metro 6", "Metro 7", "Metro 8", 
     "Sprint primavera", "Sprint verano", "Porteño", "Nacional", "La pampa", "Internacional"
 ];
-// --- NORMALIZADOR DE TORNEOS VIEJOS Y NUEVOS ---
+let currentUser = null;
+let allPosts = [];
+
+// --- MANEJO DE ESTADO DE AUTENTICACIÓN ---
+auth.onAuthStateChanged(user => {
+    currentUser = user;
+    const openLoginBtn = document.getElementById('open-login-btn');
+    const openRegisterBtn = document.getElementById('open-register-btn');
+    const userInfo = document.getElementById('user-info');
+    const userEmailDisplay = document.getElementById('user-email-display');
+
+    if (user) {
+        if (openLoginBtn) openLoginBtn.classList.add('hidden');
+        if (openRegisterBtn) openRegisterBtn.classList.add('hidden');
+        if (userInfo) userInfo.classList.remove('hidden');
+        if (userEmailDisplay) userEmailDisplay.textContent = user.email;
+    } else {
+        if (openLoginBtn) openLoginBtn.classList.remove('hidden');
+        if (openRegisterBtn) openRegisterBtn.classList.remove('hidden');
+        if (userInfo) userInfo.classList.add('hidden');
+    }
+    
+    // Volver a renderizar para mostrar/ocultar botones de eliminar según el usuario actual
+    applyFilters();
+});
+
+// --- LÓGICA DE REGISTRO E INICIO DE SESIÓN ---
+const authModal = document.getElementById('auth-modal');
+const authForm = document.getElementById('auth-form');
+const authModalTitle = document.getElementById('auth-modal-title');
+const authErrorMsg = document.getElementById('auth-error-msg');
+let isLoginMode = true;
+
+document.getElementById('open-login-btn')?.addEventListener('click', () => {
+    isLoginMode = true;
+    authModalTitle.textContent = "Iniciar Sesión";
+    authErrorMsg.classList.add('hidden');
+    authModal.classList.remove('hidden');
+});
+
+document.getElementById('open-register-btn')?.addEventListener('click', () => {
+    isLoginMode = false;
+    authModalTitle.textContent = "Crear Cuenta";
+    authErrorMsg.classList.add('hidden');
+    authModal.classList.remove('hidden');
+});
+
+document.getElementById('close-auth-modal')?.addEventListener('click', () => {
+    authModal.classList.add('hidden');
+});
+
+document.getElementById('logout-btn')?.addEventListener('click', () => {
+    auth.signOut();
+});
+
+authForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    authErrorMsg.classList.add('hidden');
+
+    try {
+        if (isLoginMode) {
+            await auth.signInWithEmailAndPassword(email, password);
+        } else {
+            await auth.createUserWithEmailAndPassword(email, password);
+        }
+        authForm.reset();
+        authModal.classList.add('hidden');
+    } catch (err) {
+        authErrorMsg.textContent = err.message;
+        authErrorMsg.classList.remove('hidden');
+    }
+});
+
+// --- ELIMINAR PUBLICACIÓN ---
+async function deletePost(postId) {
+    if (!currentUser) return;
+    if (confirm("¿Estás seguro de que deseas eliminar esta publicación?")) {
+        try {
+            await db.collection("publicaciones").doc(postId).delete();
+            alert("Publicación eliminada correctamente.");
+            // Si el modal de detalle del nadador está abierto, lo cerramos
+            document.getElementById('swimmer-detail-modal')?.remove();
+        } catch (err) {
+            console.error("Error al eliminar:", err);
+            alert("No tienes permisos para eliminar este elemento.");
+        }
+    }
+}
+
+// --- NORMALIZADOR DE TORNEOS ---
 function normalizeTournamentName(rawName) {
     if (!rawName) return "Torneo General";
-    
-    // Limpieza de texto (quitar espacios de más y pasar a minúsculas para comparar)
     const cleanRaw = rawName.toString().trim().toLowerCase().replace(/\s+/g, ' ');
-
-    // Buscar coincidencia exacta o aproximada en la lista oficial
     const match = LISTA_TORNEOS.find(officialName => {
         const cleanOfficial = officialName.toLowerCase();
         return cleanRaw === cleanOfficial || cleanRaw.replace(/\s+/g, '') === cleanOfficial.replace(/\s+/g, '');
     });
-
-    // Si coincide con alguno oficial lo devuelve estandarizado, si no, mantiene el nombre original limpio
     return match || rawName.trim();
 }
+
 // --- ELEMENTOS DEL DOM ---
 const mediaGrid = document.getElementById('media-grid');
 const emptyState = document.getElementById('empty-state');
@@ -60,10 +146,15 @@ const openModalBtn = document.getElementById('open-modal-btn');
 const closeModalBtn = document.getElementById('close-modal-btn');
 const modal = document.getElementById('upload-modal');
 
-let allPosts = []; 
-
-// --- CONTROL DE MODAL DE CARGA ---
-if (openModalBtn && modal) openModalBtn.addEventListener('click', () => modal.classList.remove('hidden'));
+if (openModalBtn && modal) {
+    openModalBtn.addEventListener('click', () => {
+        if (!currentUser) {
+            alert("Debes iniciar sesión para subir fotos o videos.");
+            return;
+        }
+        modal.classList.remove('hidden');
+    });
+}
 if (closeModalBtn && modal) closeModalBtn.addEventListener('click', () => modal.classList.add('hidden'));
 
 if (formType) {
@@ -78,7 +169,6 @@ if (formType) {
     });
 }
 
-// --- EXTRAER ID Y MINIATURA DE YOUTUBE ---
 function getYoutubeDetails(url) {
     let videoId = '';
     if (url.includes('v=')) videoId = url.split('v=')[1].split('&')[0];
@@ -89,7 +179,7 @@ function getYoutubeDetails(url) {
     };
 }
 
-// --- RENDERIZAR CARTAS POR NADADOR ---
+// --- RENDERIZAR TARJETAS ---
 function renderSwimmerCards(posts) {
     mediaGrid.innerHTML = '';
 
@@ -115,11 +205,8 @@ function renderSwimmerCards(posts) {
         const videos = swimmer.posts.filter(p => p.type === 'video');
         
         let coverUrl = 'https://via.placeholder.com/400x250?text=Sin+Media';
-        if (images.length > 0) {
-            coverUrl = images[0].url;
-        } else if (videos.length > 0) {
-            coverUrl = getYoutubeDetails(videos[0].url).thumbnail;
-        }
+        if (images.length > 0) coverUrl = images[0].url;
+        else if (videos.length > 0) coverUrl = getYoutubeDetails(videos[0].url).thumbnail;
 
         const card = document.createElement('div');
         card.className = "bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden backdrop-blur-md shadow-xl flex flex-col hover:border-blue-500/50 transition duration-300 cursor-pointer group";
@@ -153,7 +240,6 @@ function renderSwimmerCards(posts) {
     });
 }
 
-// --- VISOR DE IMAGEN AMPLIADA (LIGHTBOX) ---
 function openImageLightbox(url, title, date) {
     const oldLightbox = document.getElementById('image-lightbox');
     if (oldLightbox) oldLightbox.remove();
@@ -172,19 +258,13 @@ function openImageLightbox(url, title, date) {
     `;
 
     document.body.insertAdjacentHTML('beforeend', lightboxHTML);
-
-    document.getElementById('close-lightbox').addEventListener('click', () => {
-        document.getElementById('image-lightbox').remove();
-    });
-
+    document.getElementById('close-lightbox').addEventListener('click', () => document.getElementById('image-lightbox').remove());
     document.getElementById('image-lightbox').addEventListener('click', (e) => {
-        if (e.target.id === 'image-lightbox') {
-            document.getElementById('image-lightbox').remove();
-        }
+        if (e.target.id === 'image-lightbox') document.getElementById('image-lightbox').remove();
     });
 }
 
-// --- MODAL DETALLE DEL NADADOR ---
+// --- MODAL DETALLE CON OPCIÓN DE ELIMINAR ---
 function openSwimmerDetailModal(swimmer) {
     const oldModal = document.getElementById('swimmer-detail-modal');
     if (oldModal) oldModal.remove();
@@ -193,7 +273,7 @@ function openSwimmerDetailModal(swimmer) {
     const videos = swimmer.posts.filter(p => p.type === 'video');
 
     swimmer.posts.filter(p => p.type === 'image').forEach(post => {
-        const tournament = post.tournament || 'Torneo General';
+        const tournament = post.tournament;
         if (!tournamentsMap[tournament]) tournamentsMap[tournament] = [];
         tournamentsMap[tournament].push(post);
     });
@@ -207,15 +287,24 @@ function openSwimmerDetailModal(swimmer) {
                     🏆 ${tournament}
                 </h4>
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    ${photos.map((p, index) => `
-                        <div data-photo-index="${index}" data-tournament="${tournament}" class="photo-item group relative rounded-lg overflow-hidden bg-slate-950 aspect-square border border-slate-800 cursor-pointer">
-                            <img src="${p.url}" alt="${p.title}" class="w-full h-full object-cover group-hover:scale-110 transition duration-300">
-                            <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition p-2 flex flex-col justify-end text-[11px] text-white">
+                    ${photos.map((p) => {
+                        const isOwner = currentUser && currentUser.uid === p.ownerId;
+                        return `
+                        <div class="group relative rounded-lg overflow-hidden bg-slate-950 aspect-square border border-slate-800">
+                            <img src="${p.url}" alt="${p.title}" class="w-full h-full object-cover photo-preview cursor-pointer group-hover:scale-110 transition duration-300" data-url="${p.url}" data-title="${p.title}" data-date="${p.date}">
+                            
+                            ${isOwner ? `
+                                <button onclick="deletePost('${p.id}')" class="absolute top-2 right-2 bg-red-600/80 hover:bg-red-600 text-white p-1.5 rounded-lg text-xs z-10 transition">
+                                    🗑️
+                                </button>
+                            ` : ''}
+
+                            <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition p-2 flex flex-col justify-end text-[11px] text-white pointer-events-none">
                                 <span class="font-bold truncate">${p.title}</span>
                                 <span class="text-slate-300 text-[9px]">🔍 Clic para ampliar</span>
                             </div>
                         </div>
-                    `).join('')}
+                    `}).join('')}
                 </div>
             </div>
         `;
@@ -231,8 +320,14 @@ function openSwimmerDetailModal(swimmer) {
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     ${videos.map(v => {
                         const yt = getYoutubeDetails(v.url);
+                        const isOwner = currentUser && currentUser.uid === v.ownerId;
                         return `
-                            <div class="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden">
+                            <div class="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden relative">
+                                ${isOwner ? `
+                                    <button onclick="deletePost('${v.id}')" class="absolute top-2 right-2 bg-red-600/80 hover:bg-red-600 text-white p-1.5 rounded-lg text-xs z-10 transition">
+                                        🗑️
+                                    </button>
+                                ` : ''}
                                 <iframe class="w-full h-40" src="https://www.youtube.com/embed/${yt.id}" frameborder="0" allowfullscreen></iframe>
                                 <div class="p-3">
                                     <h5 class="text-xs font-bold text-white truncate">${v.title}</h5>
@@ -250,12 +345,10 @@ function openSwimmerDetailModal(swimmer) {
         <div id="swimmer-detail-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
             <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 relative shadow-2xl">
                 <button id="close-swimmer-modal" class="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl font-bold cursor-pointer">✕</button>
-                
                 <div class="border-b border-slate-800 pb-4 mb-6">
                     <h2 class="text-2xl font-black text-white">🏊‍♂️ ${swimmer.name}</h2>
                     <p class="text-xs text-slate-400">Haz clic en cualquier foto para verla en tamaño completo</p>
                 </div>
-
                 ${tournamentsHTML || '<p class="text-xs text-slate-500">No hay fotos registradas para este nadador.</p>'}
                 ${videosHTML}
             </div>
@@ -264,13 +357,9 @@ function openSwimmerDetailModal(swimmer) {
 
     document.body.insertAdjacentHTML('beforeend', modalHTML);
 
-    document.querySelectorAll('.photo-item').forEach(item => {
-        item.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const tName = item.getAttribute('data-tournament');
-            const idx = parseInt(item.getAttribute('data-photo-index'));
-            const photoData = tournamentsMap[tName][idx];
-            openImageLightbox(photoData.url, photoData.title, photoData.date);
+    document.querySelectorAll('.photo-preview').forEach(img => {
+        img.addEventListener('click', () => {
+            openImageLightbox(img.dataset.url, img.dataset.title, img.dataset.date);
         });
     });
 
@@ -279,7 +368,6 @@ function openSwimmerDetailModal(swimmer) {
     });
 }
 
-// --- ACTUALIZAR FILTRO DE TORNEOS ---
 function updateTournamentFilter() {
     filterTournament.innerHTML = '<option value="">Todos los Torneos</option>';
     LISTA_TORNEOS.forEach(t => {
@@ -290,18 +378,23 @@ function updateTournamentFilter() {
     });
 }
 
-// --- CARGAR PUBLICACIONES EN TIEMPO REAL ---
 function loadPosts() {
     updateTournamentFilter();
     db.collection("publicaciones").orderBy("createdAt", "desc").onSnapshot(snapshot => {
-        allPosts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        allPosts = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                tournament: normalizeTournamentName(data.tournament)
+            };
+        });
         applyFilters();
     }, err => {
         console.error("Error al cargar publicaciones:", err);
     });
 }
 
-// --- FILTRADO DE BÚSQUEDA ---
 function applyFilters() {
     const swimmerQuery = searchSwimmer.value.toLowerCase();
     const tournamentQuery = filterTournament.value;
@@ -318,40 +411,15 @@ function applyFilters() {
 searchSwimmer.addEventListener('input', applyFilters);
 filterTournament.addEventListener('change', applyFilters);
 
-// --- COMPRESIÓN DE IMÁGENES ---
-function compressImage(file, maxWidth = 1200, quality = 0.8) {
-    return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = (e) => {
-            const img = new Image();
-            img.src = e.target.result;
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
-
-                if (width > maxWidth) {
-                    height = Math.round((height * maxWidth) / width);
-                    width = maxWidth;
-                }
-
-                canvas.width = width;
-                canvas.height = height;
-
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-
-                resolve(canvas.toDataURL('image/jpeg', quality).split(',')[1]);
-            };
-        };
-    });
-}
-
-// --- ENVÍO DE FORMULARIO ---
+// --- ENVÍO DE FORMULARIO VINCULANDO PROPIETARIO ---
 if (uploadForm) {
     uploadForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+
+        if (!currentUser) {
+            alert("Debes iniciar sesión para realizar publicaciones.");
+            return;
+        }
 
         submitBtn.disabled = true;
         submitBtn.classList.add('opacity-50');
@@ -364,13 +432,6 @@ if (uploadForm) {
         const date = document.getElementById('form-date').value;
         const type = formType.value;
 
-        if (!tournament) {
-            alert("Por favor selecciona un torneo de la lista.");
-            submitBtn.disabled = false;
-            submitBtn.classList.remove('opacity-50');
-            return;
-        }
-
         try {
             if (type === 'image') {
                 const fileInput = document.getElementById('form-file');
@@ -380,7 +441,12 @@ if (uploadForm) {
 
                 for (let i = 0; i < files.length; i++) {
                     statusMsg.textContent = `Subiendo foto ${i + 1} de ${files.length}...`;
-                    const base64Image = await compressImage(files[i]);
+                    
+                    const reader = new FileReader();
+                    const base64Image = await new Promise(resolve => {
+                        reader.readAsDataURL(files[i]);
+                        reader.onload = e => resolve(e.target.result.split(',')[1]);
+                    });
 
                     const formData = new FormData();
                     formData.append("key", IMGBB_API_KEY);
@@ -396,6 +462,7 @@ if (uploadForm) {
                         title: files.length > 1 ? `${title} (${i + 1}/${files.length})` : title,
                         date, type: 'image',
                         url: result.data.url,
+                        ownerId: currentUser.uid, // Guarda el ID del creador
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
                 }
@@ -404,6 +471,7 @@ if (uploadForm) {
                 await db.collection("publicaciones").add({
                     swimmer, tournament, title, date,
                     type: 'video', url: youtubeUrl,
+                    ownerId: currentUser.uid, // Guarda el ID del creador
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
             }
@@ -428,5 +496,5 @@ if (uploadForm) {
     });
 }
 
-// Iniciar aplicación
+// Iniciar app
 loadPosts();
