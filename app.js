@@ -377,12 +377,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const videoContainer = document.getElementById('video-input-container');
     const uploadForm = document.getElementById('upload-form');
 
-    // Estado Auth
+   // Estado Auth
     auth.onAuthStateChanged(async (user) => {
-        currentUser = user;
         const userEmailDisplay = document.getElementById('user-email-display');
 
-        if (user) {
+        // Si hay usuario pero NO ha verificado su mail, se le fuerza la salida
+        if (user && !user.emailVerified) {
+            currentUser = null;
+            currentUserSwimmer = "";
+            await auth.signOut();
+            if (guestControls) guestControls.classList.remove('hidden');
+            if (userControls) userControls.classList.add('hidden');
+            applyFilters();
+            return;
+        }
+
+        currentUser = user;
+
+        if (user && user.emailVerified) {
             await fetchUserProfile(user.uid);
             if (guestControls) guestControls.classList.add('hidden');
             if (userControls) userControls.classList.remove('hidden');
@@ -416,30 +428,52 @@ document.addEventListener('DOMContentLoaded', () => {
     closeAuthModalBtn?.addEventListener('click', () => authModal?.classList.add('hidden'));
     logoutBtn?.addEventListener('click', () => auth.signOut());
 
-   // Submit Login / Registro
+ // Submit Login / Registro
     authForm?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('auth-email').value;
         const password = document.getElementById('auth-password').value;
-        // Dentro del registro de nuevo usuario:
-const rawSwimmerName = authSwimmerInput?.value;
-const swimmerName = formatSwimmerName(rawSwimmerName); // <-- Guarda el nombre limpio
+        const rawSwimmerName = authSwimmerInput?.value;
+        const swimmerName = formatSwimmerName(rawSwimmerName);
 
         if (authErrorMsg) authErrorMsg.classList.add('hidden');
 
         try {
             if (isLoginMode) {
-                await auth.signInWithEmailAndPassword(email, password);
+                // 1. Intentar iniciar sesión
+                const userCredential = await auth.signInWithEmailAndPassword(email, password);
+                const user = userCredential.user;
+
+                // 2. VALIDACIÓN DE EMAIL VERIFICADO
+                if (!user.emailVerified) {
+                    // Cerrar sesión inmediatamente
+                    await auth.signOut();
+                    
+                    // Notificar al usuario y ofrecer reenviar correo
+                    const resend = confirm(
+                        "⚠️ Tu cuenta aún no está verificada.\n\n" +
+                        "Debes hacer clic en el enlace que enviamos a tu correo (" + email + ") para activar tu acceso.\n\n" +
+                        "¿Deseas que te reenviemos el enlace de verificación?"
+                    );
+
+                    if (resend) {
+                        await user.sendEmailVerification();
+                        alert("Correo de verificación reenviado a " + email + ". Revisa tu bandeja de entrada o SPAM.");
+                    }
+                    return; // Bloquea el ingreso
+                }
+
+                // Si está verificado, continúa con normalidad
                 authForm.reset();
                 authModal?.classList.add('hidden');
+
             } else {
                 if (!swimmerName) throw new Error("Debes indicar el nombre del nadador.");
 
-                // 1. Crear usuario en Firebase Auth
+                // Registro de usuario
                 const userCredential = await auth.createUserWithEmailAndPassword(email, password);
                 const user = userCredential.user;
 
-                // 2. Intentar guardar perfil en Firestore (si falla, atrapamos el error pero continuamos al correo)
                 try {
                     await db.collection("usuarios").doc(user.uid).set({
                         email: email,
@@ -447,19 +481,19 @@ const swimmerName = formatSwimmerName(rawSwimmerName); // <-- Guarda el nombre l
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
                 } catch (dbError) {
-                    console.warn("No se pudo guardar la info extendida en Firestore:", dbError);
+                    console.warn("No se pudo guardar en Firestore:", dbError);
                 }
 
-                // 3. Enviar correo de verificación obligatorio
+                // Enviar correo de verificación
                 await user.sendEmailVerification();
 
-                // 4. Cerrar sesión automáticamente para exigir verificación/reingreso
+                // Cerrar sesión para obligar a confirmar antes de usar la app
                 await auth.signOut();
 
                 authForm.reset();
                 authModal?.classList.add('hidden');
 
-                alert(`¡Registro Exitoso!\n\nSe ha enviado un correo con el link de verificación a: ${email}\n\nPor favor, revisa tu bandeja de entrada o carpeta de SPAM, haz clic en el enlace para confirmar tu cuenta y vuelve a iniciar sesión.`);
+                alert(`¡Registro Exitoso!\n\nSe ha enviado un correo de activación a ${email}.\n\nDebes hacer clic en el enlace del correo ANTES de iniciar sesión.`);
             }
         } catch (err) {
             console.error("Error Auth:", err);
@@ -469,7 +503,6 @@ const swimmerName = formatSwimmerName(rawSwimmerName); // <-- Guarda el nombre l
             }
         }
     });
-
     // Modal de Carga
     openModalBtn?.addEventListener('click', () => {
         if (!currentUser) {
