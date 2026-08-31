@@ -9,19 +9,15 @@ const firebaseConfig = {
     appId: "1:145111560917:web:0598f682f78f0cfe91285c"
 };
 
-// Inicializar Firebase
 if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
 
-// Inicializar servicios
 const db = firebase.firestore();
 const auth = firebase.auth();
 
-// API Key de ImgBB
 const IMGBB_API_KEY = "ccbc65f4bea21908a11adb119c673316"; 
 
-// LISTA FIJA DE TORNEOS PERMITIDOS
 const LISTA_TORNEOS = [
     "Metro 1", "Metro 2", "Metro 3", "Metro 4", 
     "Metro 5", "Metro 6", "Metro 7", "Metro 8", 
@@ -29,11 +25,37 @@ const LISTA_TORNEOS = [
 ];
 
 let currentUser = null;
+let currentUserSwimmer = ""; // Nombre del nadador vinculado a la cuenta actual
 let allPosts = [];
 
-// --- EXPORTAR FUNCIÓN DE ELIMINAR A NIVEL GLOBAL ---
-window.deletePost = async function(postId) {
+// Cargar información del perfil del usuario (Nadador vinculado)
+async function fetchUserProfile(uid) {
+    try {
+        const userDoc = await db.collection("usuarios").doc(uid).get();
+        if (userDoc.exists) {
+            currentUserSwimmer = userDoc.data().swimmer || "";
+        } else {
+            currentUserSwimmer = "";
+        }
+    } catch (e) {
+        console.error("Error al obtener perfil:", e);
+        currentUserSwimmer = "";
+    }
+}
+
+// --- ELIMINAR PUBLICACIÓN CON VERIFICACIÓN DE PERMISO ---
+window.deletePost = async function(postId, postSwimmer, ownerId) {
     if (!currentUser) return;
+
+    // Se valida que sea dueño de la foto O que la foto pertenezca a su nadador registrado
+    const isOwner = currentUser.uid === ownerId;
+    const isSwimmerMatch = currentUserSwimmer && currentUserSwimmer.toLowerCase().trim() === (postSwimmer || "").toLowerCase().trim();
+
+    if (!isOwner && !isSwimmerMatch) {
+        alert("No tienes permisos. Solo puedes eliminar publicaciones asociadas a tu nadador registrado.");
+        return;
+    }
+
     if (confirm("¿Estás seguro de que deseas eliminar esta publicación?")) {
         try {
             await db.collection("publicaciones").doc(postId).delete();
@@ -41,12 +63,11 @@ window.deletePost = async function(postId) {
             document.getElementById('swimmer-detail-modal')?.remove();
         } catch (err) {
             console.error("Error al eliminar:", err);
-            alert("No tienes permisos para eliminar este elemento.");
+            alert("No fue posible eliminar este elemento.");
         }
     }
 };
 
-// --- NORMALIZADOR DE TORNEOS ---
 function normalizeTournamentName(rawName) {
     if (!rawName) return "Torneo General";
     const cleanRaw = rawName.toString().trim().toLowerCase().replace(/\s+/g, ' ');
@@ -67,7 +88,6 @@ function getYoutubeDetails(url) {
     };
 }
 
-// --- RENDERIZADO DE CONTENIDO ---
 function renderSwimmerCards(posts) {
     const mediaGrid = document.getElementById('media-grid');
     const emptyState = document.getElementById('empty-state');
@@ -177,12 +197,15 @@ function openSwimmerDetailModal(swimmer) {
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     ${photos.map((p) => {
                         const isOwner = currentUser && currentUser.uid === p.ownerId;
+                        const isSwimmerMatch = currentUser && currentUserSwimmer && currentUserSwimmer.toLowerCase().trim() === (p.swimmer || "").toLowerCase().trim();
+                        const canDelete = isOwner || isSwimmerMatch;
+
                         return `
                         <div class="group relative rounded-lg overflow-hidden bg-slate-950 aspect-square border border-slate-800">
                             <img src="${p.url}" alt="${p.title}" class="w-full h-full object-cover photo-preview cursor-pointer group-hover:scale-110 transition duration-300" data-url="${p.url}" data-title="${p.title}" data-date="${p.date}">
                             
-                            ${isOwner ? `
-                                <button onclick="window.deletePost('${p.id}')" class="absolute top-2 right-2 bg-red-600 hover:bg-red-500 text-white p-1.5 rounded-lg text-xs z-20 shadow-lg transition">
+                            ${canDelete ? `
+                                <button onclick="window.deletePost('${p.id}', '${p.swimmer.replace(/'/g, "\\'")}', '${p.ownerId}')" class="absolute top-2 right-2 bg-red-600 hover:bg-red-500 text-white p-1.5 rounded-lg text-xs z-20 shadow-lg transition" title="Eliminar foto">
                                     🗑️
                                 </button>
                             ` : ''}
@@ -209,10 +232,13 @@ function openSwimmerDetailModal(swimmer) {
                     ${videos.map(v => {
                         const yt = getYoutubeDetails(v.url);
                         const isOwner = currentUser && currentUser.uid === v.ownerId;
+                        const isSwimmerMatch = currentUser && currentUserSwimmer && currentUserSwimmer.toLowerCase().trim() === (v.swimmer || "").toLowerCase().trim();
+                        const canDelete = isOwner || isSwimmerMatch;
+
                         return `
                             <div class="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden relative">
-                                ${isOwner ? `
-                                    <button onclick="window.deletePost('${v.id}')" class="absolute top-2 right-2 bg-red-600 hover:bg-red-500 text-white p-1.5 rounded-lg text-xs z-20 shadow-lg transition">
+                                ${canDelete ? `
+                                    <button onclick="window.deletePost('${v.id}', '${v.swimmer.replace(/'/g, "\\'")}', '${v.ownerId}')" class="absolute top-2 right-2 bg-red-600 hover:bg-red-500 text-white p-1.5 rounded-lg text-xs z-20 shadow-lg transition" title="Eliminar video">
                                         🗑️
                                     </button>
                                 ` : ''}
@@ -297,7 +323,7 @@ function loadPosts() {
     }, err => console.error("Error al cargar publicaciones:", err));
 }
 
-// --- INICIALIZACIÓN CUANDO EL DOM ESTÉ LISTO ---
+// --- INICIALIZACIÓN Y AUTHENTICACIÓN ---
 document.addEventListener('DOMContentLoaded', () => {
     let isLoginMode = true;
 
@@ -305,6 +331,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const authForm = document.getElementById('auth-form');
     const authModalTitle = document.getElementById('auth-modal-title');
     const authErrorMsg = document.getElementById('auth-error-msg');
+    const swimmerRegisterContainer = document.getElementById('swimmer-register-container');
+    const authSwimmerInput = document.getElementById('auth-swimmer');
 
     const openLoginBtn = document.getElementById('open-login-btn');
     const openRegisterBtn = document.getElementById('open-register-btn');
@@ -322,39 +350,40 @@ document.addEventListener('DOMContentLoaded', () => {
     const videoContainer = document.getElementById('video-input-container');
     const uploadForm = document.getElementById('upload-form');
 
-    // Estado Auth: Alternar visibilidad de botones e interfaz
-    auth.onAuthStateChanged(user => {
+    // Estado Auth
+    auth.onAuthStateChanged(async (user) => {
         currentUser = user;
         const userEmailDisplay = document.getElementById('user-email-display');
 
         if (user) {
-            // OCULTAR botones de Iniciar Sesión / Registro
+            await fetchUserProfile(user.uid);
             if (guestControls) guestControls.classList.add('hidden');
-            
-            // MOSTRAR botón Cargar Contenido e info de usuario
             if (userControls) userControls.classList.remove('hidden');
             if (userEmailDisplay) userEmailDisplay.textContent = user.email;
         } else {
-            // MOSTRAR botones de Iniciar Sesión / Registro
+            currentUserSwimmer = "";
             if (guestControls) guestControls.classList.remove('hidden');
-            
-            // OCULTAR botón Cargar Contenido
             if (userControls) userControls.classList.add('hidden');
         }
         applyFilters();
     });
 
-    // Eventos Modales de Auth
+    // Abrir Login
     openLoginBtn?.addEventListener('click', () => {
         isLoginMode = true;
         if (authModalTitle) authModalTitle.textContent = "Iniciar Sesión";
+        swimmerRegisterContainer?.classList.add('hidden');
+        if (authSwimmerInput) authSwimmerInput.required = false;
         authErrorMsg?.classList.add('hidden');
         authModal?.classList.remove('hidden');
     });
 
+    // Abrir Registro
     openRegisterBtn?.addEventListener('click', () => {
         isLoginMode = false;
-        if (authModalTitle) authModalTitle.textContent = "Crear Cuenta";
+        if (authModalTitle) authModalTitle.textContent = "Crear Cuenta de Nadador";
+        swimmerRegisterContainer?.classList.remove('hidden');
+        if (authSwimmerInput) authSwimmerInput.required = true;
         authErrorMsg?.classList.add('hidden');
         authModal?.classList.remove('hidden');
     });
@@ -362,18 +391,41 @@ document.addEventListener('DOMContentLoaded', () => {
     closeAuthModalBtn?.addEventListener('click', () => authModal?.classList.add('hidden'));
     logoutBtn?.addEventListener('click', () => auth.signOut());
 
+    // Submit Auth (Login / Registro)
     authForm?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('auth-email').value;
         const password = document.getElementById('auth-password').value;
+        const swimmerName = authSwimmerInput?.value.trim();
+
         if (authErrorMsg) authErrorMsg.classList.add('hidden');
 
         try {
             if (isLoginMode) {
                 await auth.signInWithEmailAndPassword(email, password);
             } else {
-                await auth.createUserWithEmailAndPassword(email, password);
+                if (!swimmerName) {
+                    throw new Error("Debes indicar el nombre del nadador.");
+                }
+                
+                // 1. Crear usuario en Firebase Auth
+                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                const user = userCredential.user;
+
+                // 2. Guardar perfil en la colección 'usuarios'
+                await db.collection("usuarios").doc(user.uid).set({
+                    email: email,
+                    swimmer: swimmerName,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                // 3. Enviar correo de verificación con link de reingreso/activación
+                await user.sendEmailVerification();
+
+                // 4. Cartel de registro exitoso
+                alert(`¡Registro Exitoso!\n\nSe ha enviado un correo de verificación a ${email}.\nRevisa tu bandeja de entrada o SPAM para confirmar tu cuenta mediante el enlace facilitado.`);
             }
+
             authForm.reset();
             authModal?.classList.add('hidden');
         } catch (err) {
@@ -384,12 +436,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Eventos Modal de Carga
+    // Modal de Carga
     openModalBtn?.addEventListener('click', () => {
         if (!currentUser) {
             alert("Debes iniciar sesión para subir fotos o videos.");
             return;
         }
+
+        // Si el usuario tiene un nadador asociado por defecto, se auto-completa
+        const swimmerInput = document.getElementById('form-swimmer');
+        if (swimmerInput && currentUserSwimmer) {
+            swimmerInput.value = currentUserSwimmer;
+        }
+
         uploadModal?.classList.remove('hidden');
     });
 
@@ -405,7 +464,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Formulario de Carga
+    // Submit de Cargar Contenido
     uploadForm?.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!currentUser) {
@@ -504,6 +563,5 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('search-swimmer')?.addEventListener('input', applyFilters);
     document.getElementById('filter-tournament')?.addEventListener('change', applyFilters);
 
-    // Cargar datos
     loadPosts();
 });
