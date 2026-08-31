@@ -14,9 +14,9 @@ if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
 
-// Inicializar servicios de Firebase
+// Inicializar servicios
 const db = firebase.firestore();
-const auth = firebase.auth(); // <-- CORREGIDO: Declaración faltante de Auth
+const auth = firebase.auth();
 
 // API Key de ImgBB
 const IMGBB_API_KEY = "ccbc65f4bea21908a11adb119c673316"; 
@@ -311,6 +311,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeAuthModalBtn = document.getElementById('close-auth-modal');
     const logoutBtn = document.getElementById('logout-btn');
 
+    const guestControls = document.getElementById('guest-controls');
+    const userControls = document.getElementById('user-controls');
+
     const openModalBtn = document.getElementById('open-modal-btn');
     const closeModalBtn = document.getElementById('close-modal-btn');
     const uploadModal = document.getElementById('upload-modal');
@@ -319,29 +322,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const videoContainer = document.getElementById('video-input-container');
     const uploadForm = document.getElementById('upload-form');
 
-    // Manejo del estado Auth y Visibilidad de Elementos
+    // Estado Auth: Alternar visibilidad de botones e interfaz
     auth.onAuthStateChanged(user => {
         currentUser = user;
-        const userInfo = document.getElementById('user-info');
         const userEmailDisplay = document.getElementById('user-email-display');
 
         if (user) {
-            // Usuario con sesión iniciada
-            if (openLoginBtn) openLoginBtn.classList.add('hidden');
-            if (openRegisterBtn) openRegisterBtn.classList.add('hidden');
-            if (userInfo) userInfo.classList.remove('hidden');
+            // OCULTAR botones de Iniciar Sesión / Registro
+            if (guestControls) guestControls.classList.add('hidden');
+            
+            // MOSTRAR botón Cargar Contenido e info de usuario
+            if (userControls) userControls.classList.remove('hidden');
             if (userEmailDisplay) userEmailDisplay.textContent = user.email;
-            
-            // CORREGIDO: Muestra el botón de cargar contenido si hay sesión
-            if (openModalBtn) openModalBtn.classList.remove('hidden');
         } else {
-            // Usuario sin sesión
-            if (openLoginBtn) openLoginBtn.classList.remove('hidden');
-            if (openRegisterBtn) openRegisterBtn.classList.remove('hidden');
-            if (userInfo) userInfo.classList.add('hidden');
+            // MOSTRAR botones de Iniciar Sesión / Registro
+            if (guestControls) guestControls.classList.remove('hidden');
             
-            // CORREGIDO: Oculta el botón de cargar contenido si NO hay sesión
-            if (openModalBtn) openModalBtn.classList.add('hidden');
+            // OCULTAR botón Cargar Contenido
+            if (userControls) userControls.classList.add('hidden');
         }
         applyFilters();
     });
