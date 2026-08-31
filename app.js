@@ -42,7 +42,17 @@ async function fetchUserProfile(uid) {
         currentUserSwimmer = "";
     }
 }
-
+// Limpia espacios extra y convierte a formato Capitalizado correcto
+function formatSwimmerName(name) {
+    if (!name) return "Sin Nombre";
+    return name
+        .trim()
+        .replace(/\s+/g, ' ') // Elimina múltiples espacios entre palabras
+        .toLowerCase()
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+}
 // Función auxiliar para comparar nombres sin importar mayúsculas/espacios
 function cleanString(str) {
     return (str || "").toLowerCase().trim().replace(/\s+/g, ' ');
@@ -110,11 +120,17 @@ function renderSwimmerCards(posts) {
 
     if (emptyState) emptyState.classList.add('hidden');
 
+    // Agrupar publicaciones por nombre formateado
     const swimmersMap = {};
     posts.forEach(post => {
-        const name = post.swimmer || 'Sin Nombre';
-        if (!swimmersMap[name]) swimmersMap[name] = { name: name, posts: [] };
-        swimmersMap[name].posts.push(post);
+        const rawName = post.swimmer || 'Sin Nombre';
+        const formattedName = formatSwimmerName(rawName);
+        const key = formattedName.toLowerCase(); // Clave única sin importar mayúsculas
+
+        if (!swimmersMap[key]) {
+            swimmersMap[key] = { name: formattedName, posts: [] };
+        }
+        swimmersMap[key].posts.push(post);
     });
 
     Object.values(swimmersMap).forEach(swimmer => {
@@ -405,7 +421,9 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const email = document.getElementById('auth-email').value;
         const password = document.getElementById('auth-password').value;
-        const swimmerName = authSwimmerInput?.value.trim();
+        // Dentro del registro de nuevo usuario:
+const rawSwimmerName = authSwimmerInput?.value;
+const swimmerName = formatSwimmerName(rawSwimmerName); // <-- Guarda el nombre limpio
 
         if (authErrorMsg) authErrorMsg.classList.add('hidden');
 
@@ -499,11 +517,13 @@ document.addEventListener('DOMContentLoaded', () => {
             statusMsg.classList.add('text-blue-400');
         }
 
-        const swimmer = document.getElementById('form-swimmer').value;
-        const tournament = document.getElementById('form-tournament').value;
-        const title = document.getElementById('form-title').value;
-        const date = document.getElementById('form-date').value;
-        const type = formType.value;
+        // Dentro del submit de uploadForm:
+const rawSwimmer = document.getElementById('form-swimmer').value;
+const swimmer = formatSwimmerName(rawSwimmer); // <-- Se guarda formateado
+const tournament = document.getElementById('form-tournament').value;
+const title = document.getElementById('form-title').value;
+const date = document.getElementById('form-date').value;
+const type = formType.value;
 
         try {
             if (type === 'image') {
