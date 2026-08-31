@@ -1,6 +1,5 @@
 // --- CONFIGURACIÓN DE FIREBASE E IMGBB ---
 
-// 1. IMPORTANTE: Reemplaza este objeto con la configuración real de tu proyecto en Firebase Console
 const firebaseConfig = {
     apiKey: "AIzaSyCs6WLXvimzgnfl5OxfYoDU4EAEYxJxaOY",
     authDomain: "natacionba-3b263.firebaseapp.com",
@@ -10,15 +9,16 @@ const firebaseConfig = {
     appId: "1:145111560917:web:0598f682f78f0cfe91285c"
 };
 
-// Inicializar Firebase (Solo si no ha sido inicializado antes)
+// Inicializar Firebase
 if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
 
-// Inicializar únicamente Firestore
+// Inicializar servicios de Firebase
 const db = firebase.firestore();
+const auth = firebase.auth(); // <-- CORREGIDO: Declaración faltante de Auth
 
-// 2. Tu API Key de ImgBB
+// API Key de ImgBB
 const IMGBB_API_KEY = "ccbc65f4bea21908a11adb119c673316"; 
 
 // LISTA FIJA DE TORNEOS PERMITIDOS
@@ -27,6 +27,7 @@ const LISTA_TORNEOS = [
     "Metro 5", "Metro 6", "Metro 7", "Metro 8", 
     "Sprint primavera", "Sprint verano", "Porteño", "Nacional", "La pampa", "Internacional"
 ];
+
 let currentUser = null;
 let allPosts = [];
 
@@ -318,21 +319,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const videoContainer = document.getElementById('video-input-container');
     const uploadForm = document.getElementById('upload-form');
 
-    // Manejo del estado Auth
+    // Manejo del estado Auth y Visibilidad de Elementos
     auth.onAuthStateChanged(user => {
         currentUser = user;
         const userInfo = document.getElementById('user-info');
         const userEmailDisplay = document.getElementById('user-email-display');
 
         if (user) {
+            // Usuario con sesión iniciada
             if (openLoginBtn) openLoginBtn.classList.add('hidden');
             if (openRegisterBtn) openRegisterBtn.classList.add('hidden');
             if (userInfo) userInfo.classList.remove('hidden');
             if (userEmailDisplay) userEmailDisplay.textContent = user.email;
+            
+            // CORREGIDO: Muestra el botón de cargar contenido si hay sesión
+            if (openModalBtn) openModalBtn.classList.remove('hidden');
         } else {
+            // Usuario sin sesión
             if (openLoginBtn) openLoginBtn.classList.remove('hidden');
             if (openRegisterBtn) openRegisterBtn.classList.remove('hidden');
             if (userInfo) userInfo.classList.add('hidden');
+            
+            // CORREGIDO: Oculta el botón de cargar contenido si NO hay sesión
+            if (openModalBtn) openModalBtn.classList.add('hidden');
         }
         applyFilters();
     });
