@@ -28,6 +28,18 @@ let currentUser = null;
 let currentUserSwimmer = ""; 
 let allPosts = [];
 
+// Formatear y estandarizar nombres de nadadores
+function formatSwimmerName(name) {
+    if (!name) return "Sin Nombre";
+    return name
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase()
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+}
+
 // Cargar información del perfil del usuario (Nadador vinculado)
 async function fetchUserProfile(uid) {
     try {
@@ -42,23 +54,12 @@ async function fetchUserProfile(uid) {
         currentUserSwimmer = "";
     }
 }
-// Limpia espacios extra y convierte a formato Capitalizado correcto
-function formatSwimmerName(name) {
-    if (!name) return "Sin Nombre";
-    return name
-        .trim()
-        .replace(/\s+/g, ' ') // Elimina múltiples espacios entre palabras
-        .toLowerCase()
-        .split(' ')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' ');
-}
-// Función auxiliar para comparar nombres sin importar mayúsculas/espacios
+
 function cleanString(str) {
     return (str || "").toLowerCase().trim().replace(/\s+/g, ' ');
 }
 
-// --- ELIMINAR PUBLICACIÓN CON VERIFICACIÓN FLEXIBLE ---
+// --- ELIMINAR PUBLICACIÓN ---
 window.deletePost = async function(postId, postSwimmer, ownerId) {
     if (!currentUser) {
         alert("Debes iniciar sesión para eliminar contenido.");
@@ -68,16 +69,15 @@ window.deletePost = async function(postId, postSwimmer, ownerId) {
     const isOwner = currentUser.uid === ownerId;
     const isSwimmerMatch = currentUserSwimmer && cleanString(currentUserSwimmer) === cleanString(postSwimmer);
 
-    // Permite borrar si es el dueño O si la foto pertenece al nadador registrado por el usuario
     if (!isOwner && !isSwimmerMatch) {
         alert(`No tienes permiso para borrar esta foto. Tu cuenta está vinculada a "${currentUserSwimmer}" y esta foto pertenece a "${postSwimmer}".`);
         return;
     }
 
-    if (confirm("¿Estás seguro de que deseas eliminar esta publicación?")) {
+    if (confirm("¿Estás seguro de que deseas eliminar este contenido?")) {
         try {
             await db.collection("publicaciones").doc(postId).delete();
-            alert("Publicación eliminada correctamente.");
+            alert("Eliminado correctamente.");
             document.getElementById('swimmer-detail-modal')?.remove();
         } catch (err) {
             console.error("Error al eliminar:", err);
@@ -120,12 +120,11 @@ function renderSwimmerCards(posts) {
 
     if (emptyState) emptyState.classList.add('hidden');
 
-    // Agrupar publicaciones por nombre formateado
     const swimmersMap = {};
     posts.forEach(post => {
         const rawName = post.swimmer || 'Sin Nombre';
         const formattedName = formatSwimmerName(rawName);
-        const key = formattedName.toLowerCase(); // Clave única sin importar mayúsculas
+        const key = formattedName.toLowerCase();
 
         if (!swimmersMap[key]) {
             swimmersMap[key] = { name: formattedName, posts: [] };
@@ -219,25 +218,22 @@ function openSwimmerDetailModal(swimmer) {
                         const isOwner = currentUser && currentUser.uid === p.ownerId;
                         const isSwimmerMatch = currentUser && currentUserSwimmer && cleanString(currentUserSwimmer) === cleanString(p.swimmer);
                         const canDelete = isOwner || isSwimmerMatch;
-
                         const safeSwimmer = (p.swimmer || "").replace(/'/g, "\\'");
 
-                       // En la sección donde se generan las imágenes dentro de openSwimmerDetailModal:
-return `
-    <div class="group relative rounded-lg overflow-hidden bg-slate-950 aspect-square border border-slate-800">
-        <img src="${p.url}" alt="${p.swimmer}" class="w-full h-full object-cover photo-preview cursor-pointer group-hover:scale-110 transition duration-300" data-url="${p.url}">
-        
-        ${canDelete ? `
-            <button onclick="window.deletePost('${p.id}', '${safeSwimmer}', '${p.ownerId || ''}')" class="absolute top-2 right-2 bg-red-600 hover:bg-red-500 text-white p-1.5 rounded-lg text-xs z-20 shadow-lg transition" title="Eliminar foto">
-                🗑️
-            </button>
-        ` : ''}
+                        return `
+                        <div class="group relative rounded-lg overflow-hidden bg-slate-950 aspect-square border border-slate-800">
+                            <img src="${p.url}" class="w-full h-full object-cover photo-preview cursor-pointer group-hover:scale-110 transition duration-300" data-url="${p.url}">
+                            
+                            ${canDelete ? `
+                                <button onclick="window.deletePost('${p.id}', '${safeSwimmer}', '${p.ownerId || ''}')" class="absolute top-2 right-2 bg-red-600 hover:bg-red-500 text-white p-1.5 rounded-lg text-xs z-20 shadow-lg transition" title="Eliminar foto">
+                                    🗑️
+                                </button>
+                            ` : ''}
 
-        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition p-2 flex flex-col justify-end text-[11px] text-white pointer-events-none">
-            <span class="text-slate-300 text-[10px]">🔍 Clic para ampliar</span>
-        </div>
-    </div>
-`;
+                            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition p-2 flex flex-col justify-end text-[11px] text-white pointer-events-none">
+                                <span class="text-slate-300 text-[10px]">🔍 Clic para ampliar</span>
+                            </div>
+                        </div>
                     `}).join('')}
                 </div>
             </div>
@@ -268,7 +264,6 @@ return `
                                 ` : ''}
                                 <iframe class="w-full h-40" src="https://www.youtube.com/embed/${yt.id}" frameborder="0" allowfullscreen></iframe>
                                 <div class="p-3">
-                                    <h5 class="text-xs font-bold text-white truncate">${v.title}</h5>
                                     <p class="text-[10px] text-slate-400">🏆 ${v.tournament}</p>
                                 </div>
                             </div>
@@ -296,7 +291,7 @@ return `
     document.body.insertAdjacentHTML('beforeend', modalHTML);
 
     document.querySelectorAll('.photo-preview').forEach(img => {
-        img.addEventListener('click', () => openImageLightbox(img.dataset.url, img.dataset.title, img.dataset.date));
+        img.addEventListener('click', () => openImageLightbox(img.dataset.url));
     });
 
     document.getElementById('close-swimmer-modal')?.addEventListener('click', () => {
@@ -347,7 +342,7 @@ function loadPosts() {
     }, err => console.error("Error al cargar publicaciones:", err));
 }
 
-// --- INICIALIZACIÓN Y AUTHENTICACIÓN ---
+// --- INICIALIZACIÓN Y AUTENTICACIÓN ---
 document.addEventListener('DOMContentLoaded', () => {
     let isLoginMode = true;
 
@@ -373,76 +368,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const imageContainer = document.getElementById('image-input-container');
     const videoContainer = document.getElementById('video-input-container');
     const uploadForm = document.getElementById('upload-form');
-    // --- AUTENTICACIÓN CON GOOGLE ---
-    const googleLoginBtn = document.getElementById('google-login-btn');
-    const googleSwimmerModal = document.getElementById('google-swimmer-modal');
-    const googleSwimmerForm = document.getElementById('google-swimmer-form');
-    const googleSwimmerInput = document.getElementById('google-swimmer-input');
 
-    let pendingGoogleUser = null;
-
-    googleLoginBtn?.addEventListener('click', async () => {
-        try {
-            const provider = new firebase.auth.GoogleAuthProvider();
-            const result = await auth.signInWithPopup(provider);
-            const user = result.user;
-
-            // Consultar si el usuario ya existe en Firestore
-            const userDoc = await db.collection("usuarios").doc(user.uid).get();
-
-            if (!userDoc.exists || !userDoc.data().swimmer) {
-                // Es un usuario nuevo o no tiene nadador guardado: Pedir el nombre
-                pendingGoogleUser = user;
-                authModal?.classList.add('hidden');
-                googleSwimmerModal?.classList.remove('hidden');
-            } else {
-                // Usuario existente con nadador cargado: cerrar modal de auth
-                authModal?.classList.add('hidden');
-                await fetchUserProfile(user.uid);
-                applyFilters();
-            }
-        } catch (error) {
-            console.error("Error al iniciar sesión con Google:", error);
-            if (authErrorMsg) {
-                authErrorMsg.textContent = "Error con Google: " + error.message;
-                authErrorMsg.classList.remove('hidden');
-            }
-        }
-    });
-
-    // Guardar el nombre del nadador para usuarios de Google por primera vez
-    googleSwimmerForm?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const swimmerName = formatSwimmerName(googleSwimmerInput.value);
-
-        if (!swimmerName || !pendingGoogleUser) return;
-
-        try {
-            await db.collection("usuarios").doc(pendingGoogleUser.uid).set({
-                email: pendingGoogleUser.email,
-                swimmer: swimmerName,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
-
-            currentUserSwimmer = swimmerName;
-            googleSwimmerModal?.classList.add('hidden');
-            googleSwimmerForm.reset();
-            pendingGoogleUser = null;
-
-            applyFilters();
-            alert("¡Perfil completado con éxito!");
-        } catch (error) {
-            console.error("Error al guardar perfil de Google:", error);
-            alert("Ocurrió un error al guardar el perfil: " + error.message);
-        }
-    });
-
-   // Estado Auth
+    // Estado Auth
     auth.onAuthStateChanged(async (user) => {
         const userEmailDisplay = document.getElementById('user-email-display');
 
-        // Si hay usuario pero NO ha verificado su mail, se le fuerza la salida
-        if (user && !user.emailVerified) {
+        if (user && !user.emailVerified && user.providerData[0]?.providerId === 'password') {
             currentUser = null;
             currentUserSwimmer = "";
             await auth.signOut();
@@ -454,7 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         currentUser = user;
 
-        if (user && user.emailVerified) {
+        if (user) {
             await fetchUserProfile(user.uid);
             if (guestControls) guestControls.classList.add('hidden');
             if (userControls) userControls.classList.remove('hidden');
@@ -488,7 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
     closeAuthModalBtn?.addEventListener('click', () => authModal?.classList.add('hidden'));
     logoutBtn?.addEventListener('click', () => auth.signOut());
 
- // Submit Login / Registro
+    // Submit Login / Registro Tradicional
     authForm?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('auth-email').value;
@@ -500,37 +431,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             if (isLoginMode) {
-                // 1. Intentar iniciar sesión
                 const userCredential = await auth.signInWithEmailAndPassword(email, password);
                 const user = userCredential.user;
 
-                // 2. VALIDACIÓN DE EMAIL VERIFICADO
                 if (!user.emailVerified) {
-                    // Cerrar sesión inmediatamente
                     await auth.signOut();
-                    
-                    // Notificar al usuario y ofrecer reenviar correo
                     const resend = confirm(
                         "⚠️ Tu cuenta aún no está verificada.\n\n" +
-                        "Debes hacer clic en el enlace que enviamos a tu correo (" + email + ") para activar tu acceso.\n\n" +
-                        "¿Deseas que te reenviemos el enlace de verificación?"
+                        "Debes hacer clic en el enlace enviado a " + email + " para ingresar.\n\n" +
+                        "¿Deseas reenviar el correo de verificación?"
                     );
 
                     if (resend) {
                         await user.sendEmailVerification();
-                        alert("Correo de verificación reenviado a " + email + ". Revisa tu bandeja de entrada o SPAM.");
+                        alert("Correo reenviado. Revisa tu bandeja de entrada o SPAM.");
                     }
-                    return; // Bloquea el ingreso
+                    return;
                 }
 
-                // Si está verificado, continúa con normalidad
                 authForm.reset();
                 authModal?.classList.add('hidden');
 
             } else {
                 if (!swimmerName) throw new Error("Debes indicar el nombre del nadador.");
 
-                // Registro de usuario
                 const userCredential = await auth.createUserWithEmailAndPassword(email, password);
                 const user = userCredential.user;
 
@@ -541,19 +465,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
                 } catch (dbError) {
-                    console.warn("No se pudo guardar en Firestore:", dbError);
+                    console.warn("Error en Firestore:", dbError);
                 }
 
-                // Enviar correo de verificación
                 await user.sendEmailVerification();
-
-                // Cerrar sesión para obligar a confirmar antes de usar la app
                 await auth.signOut();
 
                 authForm.reset();
                 authModal?.classList.add('hidden');
 
-                alert(`¡Registro Exitoso!\n\nSe ha enviado un correo de activación a ${email}.\n\nDebes hacer clic en el enlace del correo ANTES de iniciar sesión.`);
+                alert(`¡Registro Exitoso!\n\nSe ha enviado un correo de activación a ${email}.\nConfirma tu correo para poder ingresar.`);
             }
         } catch (err) {
             console.error("Error Auth:", err);
@@ -563,7 +484,67 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
-    // Modal de Carga
+
+    // Login con Google
+    const googleLoginBtn = document.getElementById('google-login-btn');
+    const googleSwimmerModal = document.getElementById('google-swimmer-modal');
+    const googleSwimmerForm = document.getElementById('google-swimmer-form');
+    const googleSwimmerInput = document.getElementById('google-swimmer-input');
+    let pendingGoogleUser = null;
+
+    googleLoginBtn?.addEventListener('click', async () => {
+        try {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            const result = await auth.signInWithPopup(provider);
+            const user = result.user;
+
+            const userDoc = await db.collection("usuarios").doc(user.uid).get();
+
+            if (!userDoc.exists || !userDoc.data().swimmer) {
+                pendingGoogleUser = user;
+                authModal?.classList.add('hidden');
+                googleSwimmerModal?.classList.remove('hidden');
+            } else {
+                authModal?.classList.add('hidden');
+                await fetchUserProfile(user.uid);
+                applyFilters();
+            }
+        } catch (error) {
+            console.error("Error Google Auth:", error);
+            if (authErrorMsg) {
+                authErrorMsg.textContent = error.message;
+                authErrorMsg.classList.remove('hidden');
+            }
+        }
+    });
+
+    googleSwimmerForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const swimmerName = formatSwimmerName(googleSwimmerInput.value);
+
+        if (!swimmerName || !pendingGoogleUser) return;
+
+        try {
+            await db.collection("usuarios").doc(pendingGoogleUser.uid).set({
+                email: pendingGoogleUser.email,
+                swimmer: swimmerName,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+
+            currentUserSwimmer = swimmerName;
+            googleSwimmerModal?.classList.add('hidden');
+            googleSwimmerForm.reset();
+            pendingGoogleUser = null;
+
+            applyFilters();
+            alert("¡Perfil guardado correctamente!");
+        } catch (error) {
+            console.error("Error al guardar perfil de Google:", error);
+            alert("Error al guardar perfil: " + error.message);
+        }
+    });
+
+    // Modal de Carga de Contenido
     openModalBtn?.addEventListener('click', () => {
         if (!currentUser) {
             alert("Debes iniciar sesión para subir fotos o videos.");
@@ -610,60 +591,53 @@ document.addEventListener('DOMContentLoaded', () => {
             statusMsg.classList.add('text-blue-400');
         }
 
-        // Dentro del submit de uploadForm:
-const rawSwimmer = document.getElementById('form-swimmer').value;
-const swimmer = formatSwimmerName(rawSwimmer); // <-- Se guarda formateado
-const tournament = document.getElementById('form-tournament').value;
-//const title = document.getElementById('form-title').value;
-//const date = document.getElementById('form-date').value; 
-const type = formType.value;
+        const swimmer = formatSwimmerName(document.getElementById('form-swimmer').value);
+        const tournament = document.getElementById('form-tournament').value;
+        const type = formType.value;
 
         try {
-          // Ya no obtenemos form-title ni form-date
+            if (type === 'image') {
+                const fileInput = document.getElementById('form-file');
+                const files = Array.from(fileInput.files);
+                if (files.length === 0) throw new Error("Selecciona al menos una foto.");
 
-if (type === 'image') {
-    const fileInput = document.getElementById('form-file');
-    const files = Array.from(fileInput.files);
-    if (files.length === 0) throw new Error("Selecciona al menos una foto.");
+                for (let i = 0; i < files.length; i++) {
+                    if (statusMsg) statusMsg.textContent = `Subiendo foto ${i + 1} de ${files.length}...`;
+                    
+                    const reader = new FileReader();
+                    const base64Image = await new Promise(resolve => {
+                        reader.readAsDataURL(files[i]);
+                        reader.onload = e => resolve(e.target.result.split(',')[1]);
+                    });
 
-    for (let i = 0; i < files.length; i++) {
-        if (statusMsg) statusMsg.textContent = `Subiendo foto ${i + 1} de ${files.length}...`;
-        
-        const reader = new FileReader();
-        const base64Image = await new Promise(resolve => {
-            reader.readAsDataURL(files[i]);
-            reader.onload = e => resolve(e.target.result.split(',')[1]);
-        });
+                    const formData = new FormData();
+                    formData.append("key", IMGBB_API_KEY);
+                    formData.append("image", base64Image);
 
-        const formData = new FormData();
-        formData.append("key", IMGBB_API_KEY);
-        formData.append("image", base64Image);
+                    const res = await fetch("https://api.imgbb.com/1/upload", { method: "POST", body: formData });
+                    const result = await res.json();
+                    if (!result.success) throw new Error("Error al subir a ImgBB");
 
-        const res = await fetch("https://api.imgbb.com/1/upload", { method: "POST", body: formData });
-        const result = await res.json();
-        if (!result.success) throw new Error("Error al subir a ImgBB");
-
-        // Guardar sin título ni fecha
-        await db.collection("publicaciones").add({
-            swimmer, 
-            tournament,
-            type: 'image',
-            url: result.data.url,
-            ownerId: currentUser.uid,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-    }
-} else if (type === 'video') {
-    const youtubeUrl = document.getElementById('form-youtube-url').value;
-    await db.collection("publicaciones").add({
-        swimmer, 
-        tournament, 
-        type: 'video', 
-        url: youtubeUrl,
-        ownerId: currentUser.uid,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-}
+                    await db.collection("publicaciones").add({
+                        swimmer, 
+                        tournament,
+                        type: 'image',
+                        url: result.data.url,
+                        ownerId: currentUser.uid,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+            } else if (type === 'video') {
+                const youtubeUrl = document.getElementById('form-youtube-url').value;
+                await db.collection("publicaciones").add({
+                    swimmer, 
+                    tournament, 
+                    type: 'video', 
+                    url: youtubeUrl,
+                    ownerId: currentUser.uid,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
 
             if (statusMsg) {
                 statusMsg.className = "text-xs text-center font-medium text-green-400";
