@@ -173,19 +173,15 @@ function renderSwimmerCards(posts) {
     });
 }
 
-function openImageLightbox(url, title, date) {
+function openImageLightbox(url) {
     const oldLightbox = document.getElementById('image-lightbox');
     if (oldLightbox) oldLightbox.remove();
 
     const lightboxHTML = `
         <div id="image-lightbox" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[60] flex flex-col items-center justify-center p-4">
             <button id="close-lightbox" class="absolute top-4 right-6 text-white text-3xl font-bold hover:text-blue-400 transition cursor-pointer">✕</button>
-            <div class="max-w-4xl max-h-[80vh] flex flex-col items-center">
-                <img src="${url}" alt="${title}" class="max-w-full max-h-[75vh] object-contain rounded-lg border border-slate-800 shadow-2xl">
-                <div class="text-center mt-3">
-                    <h4 class="text-white text-base font-bold">${title}</h4>
-                    <p class="text-slate-400 text-xs">${date || ''}</p>
-                </div>
+            <div class="max-w-4xl max-h-[85vh] flex flex-col items-center">
+                <img src="${url}" class="max-w-full max-h-[80vh] object-contain rounded-lg border border-slate-800 shadow-2xl">
             </div>
         </div>
     `;
@@ -226,21 +222,22 @@ function openSwimmerDetailModal(swimmer) {
 
                         const safeSwimmer = (p.swimmer || "").replace(/'/g, "\\'");
 
-                        return `
-                        <div class="group relative rounded-lg overflow-hidden bg-slate-950 aspect-square border border-slate-800">
-                            <img src="${p.url}" alt="${p.title}" class="w-full h-full object-cover photo-preview cursor-pointer group-hover:scale-110 transition duration-300" data-url="${p.url}" data-title="${p.title}" data-date="${p.date}">
-                            
-                            ${canDelete ? `
-                                <button onclick="window.deletePost('${p.id}', '${safeSwimmer}', '${p.ownerId || ''}')" class="absolute top-2 right-2 bg-red-600 hover:bg-red-500 text-white p-1.5 rounded-lg text-xs z-20 shadow-lg transition" title="Eliminar foto">
-                                    🗑️
-                                </button>
-                            ` : ''}
+                       // En la sección donde se generan las imágenes dentro de openSwimmerDetailModal:
+return `
+    <div class="group relative rounded-lg overflow-hidden bg-slate-950 aspect-square border border-slate-800">
+        <img src="${p.url}" alt="${p.swimmer}" class="w-full h-full object-cover photo-preview cursor-pointer group-hover:scale-110 transition duration-300" data-url="${p.url}">
+        
+        ${canDelete ? `
+            <button onclick="window.deletePost('${p.id}', '${safeSwimmer}', '${p.ownerId || ''}')" class="absolute top-2 right-2 bg-red-600 hover:bg-red-500 text-white p-1.5 rounded-lg text-xs z-20 shadow-lg transition" title="Eliminar foto">
+                🗑️
+            </button>
+        ` : ''}
 
-                            <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition p-2 flex flex-col justify-end text-[11px] text-white pointer-events-none">
-                                <span class="font-bold truncate">${p.title}</span>
-                                <span class="text-slate-300 text-[9px]">🔍 Clic para ampliar</span>
-                            </div>
-                        </div>
+        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition p-2 flex flex-col justify-end text-[11px] text-white pointer-events-none">
+            <span class="text-slate-300 text-[10px]">🔍 Clic para ampliar</span>
+        </div>
+    </div>
+`;
                     `}).join('')}
                 </div>
             </div>
@@ -617,52 +614,56 @@ document.addEventListener('DOMContentLoaded', () => {
 const rawSwimmer = document.getElementById('form-swimmer').value;
 const swimmer = formatSwimmerName(rawSwimmer); // <-- Se guarda formateado
 const tournament = document.getElementById('form-tournament').value;
-const title = document.getElementById('form-title').value;
-const date = document.getElementById('form-date').value;
+//const title = document.getElementById('form-title').value;
+//const date = document.getElementById('form-date').value; 
 const type = formType.value;
 
         try {
-            if (type === 'image') {
-                const fileInput = document.getElementById('form-file');
-                const files = Array.from(fileInput.files);
-                if (files.length === 0) throw new Error("Selecciona al menos una foto.");
+          // Ya no obtenemos form-title ni form-date
 
-                for (let i = 0; i < files.length; i++) {
-                    if (statusMsg) statusMsg.textContent = `Subiendo foto ${i + 1} de ${files.length}...`;
-                    
-                    const reader = new FileReader();
-                    const base64Image = await new Promise(resolve => {
-                        reader.readAsDataURL(files[i]);
-                        reader.onload = e => resolve(e.target.result.split(',')[1]);
-                    });
+if (type === 'image') {
+    const fileInput = document.getElementById('form-file');
+    const files = Array.from(fileInput.files);
+    if (files.length === 0) throw new Error("Selecciona al menos una foto.");
 
-                    const formData = new FormData();
-                    formData.append("key", IMGBB_API_KEY);
-                    formData.append("image", base64Image);
+    for (let i = 0; i < files.length; i++) {
+        if (statusMsg) statusMsg.textContent = `Subiendo foto ${i + 1} de ${files.length}...`;
+        
+        const reader = new FileReader();
+        const base64Image = await new Promise(resolve => {
+            reader.readAsDataURL(files[i]);
+            reader.onload = e => resolve(e.target.result.split(',')[1]);
+        });
 
-                    const res = await fetch("https://api.imgbb.com/1/upload", { method: "POST", body: formData });
-                    const result = await res.json();
-                    if (!result.success) throw new Error("Error al subir a ImgBB");
+        const formData = new FormData();
+        formData.append("key", IMGBB_API_KEY);
+        formData.append("image", base64Image);
 
-                    await db.collection("publicaciones").add({
-                        swimmer, tournament,
-                        // AHORA (guarda solo el título ingresado):
-                        title: title,
-                        date, type: 'image',
-                        url: result.data.url,
-                        ownerId: currentUser.uid,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                }
-            } else if (type === 'video') {
-                const youtubeUrl = document.getElementById('form-youtube-url').value;
-                await db.collection("publicaciones").add({
-                    swimmer, tournament, title, date,
-                    type: 'video', url: youtubeUrl,
-                    ownerId: currentUser.uid,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-            }
+        const res = await fetch("https://api.imgbb.com/1/upload", { method: "POST", body: formData });
+        const result = await res.json();
+        if (!result.success) throw new Error("Error al subir a ImgBB");
+
+        // Guardar sin título ni fecha
+        await db.collection("publicaciones").add({
+            swimmer, 
+            tournament,
+            type: 'image',
+            url: result.data.url,
+            ownerId: currentUser.uid,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    }
+} else if (type === 'video') {
+    const youtubeUrl = document.getElementById('form-youtube-url').value;
+    await db.collection("publicaciones").add({
+        swimmer, 
+        tournament, 
+        type: 'video', 
+        url: youtubeUrl,
+        ownerId: currentUser.uid,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+}
 
             if (statusMsg) {
                 statusMsg.className = "text-xs text-center font-medium text-green-400";
