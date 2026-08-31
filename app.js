@@ -376,6 +376,69 @@ document.addEventListener('DOMContentLoaded', () => {
     const imageContainer = document.getElementById('image-input-container');
     const videoContainer = document.getElementById('video-input-container');
     const uploadForm = document.getElementById('upload-form');
+    // --- AUTENTICACIÓN CON GOOGLE ---
+    const googleLoginBtn = document.getElementById('google-login-btn');
+    const googleSwimmerModal = document.getElementById('google-swimmer-modal');
+    const googleSwimmerForm = document.getElementById('google-swimmer-form');
+    const googleSwimmerInput = document.getElementById('google-swimmer-input');
+
+    let pendingGoogleUser = null;
+
+    googleLoginBtn?.addEventListener('click', async () => {
+        try {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            const result = await auth.signInWithPopup(provider);
+            const user = result.user;
+
+            // Consultar si el usuario ya existe en Firestore
+            const userDoc = await db.collection("usuarios").doc(user.uid).get();
+
+            if (!userDoc.exists || !userDoc.data().swimmer) {
+                // Es un usuario nuevo o no tiene nadador guardado: Pedir el nombre
+                pendingGoogleUser = user;
+                authModal?.classList.add('hidden');
+                googleSwimmerModal?.classList.remove('hidden');
+            } else {
+                // Usuario existente con nadador cargado: cerrar modal de auth
+                authModal?.classList.add('hidden');
+                await fetchUserProfile(user.uid);
+                applyFilters();
+            }
+        } catch (error) {
+            console.error("Error al iniciar sesión con Google:", error);
+            if (authErrorMsg) {
+                authErrorMsg.textContent = "Error con Google: " + error.message;
+                authErrorMsg.classList.remove('hidden');
+            }
+        }
+    });
+
+    // Guardar el nombre del nadador para usuarios de Google por primera vez
+    googleSwimmerForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const swimmerName = formatSwimmerName(googleSwimmerInput.value);
+
+        if (!swimmerName || !pendingGoogleUser) return;
+
+        try {
+            await db.collection("usuarios").doc(pendingGoogleUser.uid).set({
+                email: pendingGoogleUser.email,
+                swimmer: swimmerName,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+
+            currentUserSwimmer = swimmerName;
+            googleSwimmerModal?.classList.add('hidden');
+            googleSwimmerForm.reset();
+            pendingGoogleUser = null;
+
+            applyFilters();
+            alert("¡Perfil completado con éxito!");
+        } catch (error) {
+            console.error("Error al guardar perfil de Google:", error);
+            alert("Ocurrió un error al guardar el perfil: " + error.message);
+        }
+    });
 
    // Estado Auth
     auth.onAuthStateChanged(async (user) => {
@@ -583,7 +646,8 @@ const type = formType.value;
 
                     await db.collection("publicaciones").add({
                         swimmer, tournament,
-                        title: files.length > 1 ? `${title} (${i + 1}/${files.length})` : title,
+                        // AHORA (guarda solo el título ingresado):
+                        title: title,
                         date, type: 'image',
                         url: result.data.url,
                         ownerId: currentUser.uid,
