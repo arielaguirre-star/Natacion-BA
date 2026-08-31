@@ -30,93 +30,20 @@ const LISTA_TORNEOS = [
 let currentUser = null;
 let allPosts = [];
 
-// --- MANEJO DE ESTADO DE AUTENTICACIÓN ---
-auth.onAuthStateChanged(user => {
-    currentUser = user;
-    const openLoginBtn = document.getElementById('open-login-btn');
-    const openRegisterBtn = document.getElementById('open-register-btn');
-    const userInfo = document.getElementById('user-info');
-    const userEmailDisplay = document.getElementById('user-email-display');
-
-    if (user) {
-        if (openLoginBtn) openLoginBtn.classList.add('hidden');
-        if (openRegisterBtn) openRegisterBtn.classList.add('hidden');
-        if (userInfo) userInfo.classList.remove('hidden');
-        if (userEmailDisplay) userEmailDisplay.textContent = user.email;
-    } else {
-        if (openLoginBtn) openLoginBtn.classList.remove('hidden');
-        if (openRegisterBtn) openRegisterBtn.classList.remove('hidden');
-        if (userInfo) userInfo.classList.add('hidden');
-    }
-    
-    // Volver a renderizar para mostrar/ocultar botones de eliminar según el usuario actual
-    applyFilters();
-});
-
-// --- LÓGICA DE REGISTRO E INICIO DE SESIÓN ---
-const authModal = document.getElementById('auth-modal');
-const authForm = document.getElementById('auth-form');
-const authModalTitle = document.getElementById('auth-modal-title');
-const authErrorMsg = document.getElementById('auth-error-msg');
-let isLoginMode = true;
-
-document.getElementById('open-login-btn')?.addEventListener('click', () => {
-    isLoginMode = true;
-    authModalTitle.textContent = "Iniciar Sesión";
-    authErrorMsg.classList.add('hidden');
-    authModal.classList.remove('hidden');
-});
-
-document.getElementById('open-register-btn')?.addEventListener('click', () => {
-    isLoginMode = false;
-    authModalTitle.textContent = "Crear Cuenta";
-    authErrorMsg.classList.add('hidden');
-    authModal.classList.remove('hidden');
-});
-
-document.getElementById('close-auth-modal')?.addEventListener('click', () => {
-    authModal.classList.add('hidden');
-});
-
-document.getElementById('logout-btn')?.addEventListener('click', () => {
-    auth.signOut();
-});
-
-authForm?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('auth-email').value;
-    const password = document.getElementById('auth-password').value;
-    authErrorMsg.classList.add('hidden');
-
-    try {
-        if (isLoginMode) {
-            await auth.signInWithEmailAndPassword(email, password);
-        } else {
-            await auth.createUserWithEmailAndPassword(email, password);
-        }
-        authForm.reset();
-        authModal.classList.add('hidden');
-    } catch (err) {
-        authErrorMsg.textContent = err.message;
-        authErrorMsg.classList.remove('hidden');
-    }
-});
-
-// --- ELIMINAR PUBLICACIÓN ---
-async function deletePost(postId) {
+// --- EXPORTAR FUNCIÓN DE ELIMINAR A NIVEL GLOBAL ---
+window.deletePost = async function(postId) {
     if (!currentUser) return;
     if (confirm("¿Estás seguro de que deseas eliminar esta publicación?")) {
         try {
             await db.collection("publicaciones").doc(postId).delete();
             alert("Publicación eliminada correctamente.");
-            // Si el modal de detalle del nadador está abierto, lo cerramos
             document.getElementById('swimmer-detail-modal')?.remove();
         } catch (err) {
             console.error("Error al eliminar:", err);
             alert("No tienes permisos para eliminar este elemento.");
         }
     }
-}
+};
 
 // --- NORMALIZADOR DE TORNEOS ---
 function normalizeTournamentName(rawName) {
@@ -129,46 +56,6 @@ function normalizeTournamentName(rawName) {
     return match || rawName.trim();
 }
 
-// --- ELEMENTOS DEL DOM ---
-const mediaGrid = document.getElementById('media-grid');
-const emptyState = document.getElementById('empty-state');
-const searchSwimmer = document.getElementById('search-swimmer');
-const filterTournament = document.getElementById('filter-tournament');
-
-const uploadForm = document.getElementById('upload-form');
-const formType = document.getElementById('form-type');
-const imageContainer = document.getElementById('image-input-container');
-const videoContainer = document.getElementById('video-input-container');
-const statusMsg = document.getElementById('status-msg');
-const submitBtn = document.getElementById('submit-btn');
-
-const openModalBtn = document.getElementById('open-modal-btn');
-const closeModalBtn = document.getElementById('close-modal-btn');
-const modal = document.getElementById('upload-modal');
-
-if (openModalBtn && modal) {
-    openModalBtn.addEventListener('click', () => {
-        if (!currentUser) {
-            alert("Debes iniciar sesión para subir fotos o videos.");
-            return;
-        }
-        modal.classList.remove('hidden');
-    });
-}
-if (closeModalBtn && modal) closeModalBtn.addEventListener('click', () => modal.classList.add('hidden'));
-
-if (formType) {
-    formType.addEventListener('change', (e) => {
-        if (e.target.value === 'image') {
-            imageContainer.classList.remove('hidden');
-            videoContainer.classList.add('hidden');
-        } else {
-            imageContainer.classList.add('hidden');
-            videoContainer.classList.remove('hidden');
-        }
-    });
-}
-
 function getYoutubeDetails(url) {
     let videoId = '';
     if (url.includes('v=')) videoId = url.split('v=')[1].split('&')[0];
@@ -179,24 +66,25 @@ function getYoutubeDetails(url) {
     };
 }
 
-// --- RENDERIZAR TARJETAS ---
+// --- RENDERIZADO DE CONTENIDO ---
 function renderSwimmerCards(posts) {
+    const mediaGrid = document.getElementById('media-grid');
+    const emptyState = document.getElementById('empty-state');
+    if (!mediaGrid) return;
+
     mediaGrid.innerHTML = '';
 
     if (posts.length === 0) {
-        emptyState.classList.remove('hidden');
+        if (emptyState) emptyState.classList.remove('hidden');
         return;
     }
 
-    emptyState.classList.add('hidden');
+    if (emptyState) emptyState.classList.add('hidden');
 
     const swimmersMap = {};
-
     posts.forEach(post => {
         const name = post.swimmer || 'Sin Nombre';
-        if (!swimmersMap[name]) {
-            swimmersMap[name] = { name: name, posts: [] };
-        }
+        if (!swimmersMap[name]) swimmersMap[name] = { name: name, posts: [] };
         swimmersMap[name].posts.push(post);
     });
 
@@ -258,13 +146,12 @@ function openImageLightbox(url, title, date) {
     `;
 
     document.body.insertAdjacentHTML('beforeend', lightboxHTML);
-    document.getElementById('close-lightbox').addEventListener('click', () => document.getElementById('image-lightbox').remove());
-    document.getElementById('image-lightbox').addEventListener('click', (e) => {
+    document.getElementById('close-lightbox')?.addEventListener('click', () => document.getElementById('image-lightbox').remove());
+    document.getElementById('image-lightbox')?.addEventListener('click', (e) => {
         if (e.target.id === 'image-lightbox') document.getElementById('image-lightbox').remove();
     });
 }
 
-// --- MODAL DETALLE CON OPCIÓN DE ELIMINAR ---
 function openSwimmerDetailModal(swimmer) {
     const oldModal = document.getElementById('swimmer-detail-modal');
     if (oldModal) oldModal.remove();
@@ -294,7 +181,7 @@ function openSwimmerDetailModal(swimmer) {
                             <img src="${p.url}" alt="${p.title}" class="w-full h-full object-cover photo-preview cursor-pointer group-hover:scale-110 transition duration-300" data-url="${p.url}" data-title="${p.title}" data-date="${p.date}">
                             
                             ${isOwner ? `
-                                <button onclick="deletePost('${p.id}')" class="absolute top-2 right-2 bg-red-600/80 hover:bg-red-600 text-white p-1.5 rounded-lg text-xs z-10 transition">
+                                <button onclick="window.deletePost('${p.id}')" class="absolute top-2 right-2 bg-red-600 hover:bg-red-500 text-white p-1.5 rounded-lg text-xs z-20 shadow-lg transition">
                                     🗑️
                                 </button>
                             ` : ''}
@@ -324,7 +211,7 @@ function openSwimmerDetailModal(swimmer) {
                         return `
                             <div class="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden relative">
                                 ${isOwner ? `
-                                    <button onclick="deletePost('${v.id}')" class="absolute top-2 right-2 bg-red-600/80 hover:bg-red-600 text-white p-1.5 rounded-lg text-xs z-10 transition">
+                                    <button onclick="window.deletePost('${v.id}')" class="absolute top-2 right-2 bg-red-600 hover:bg-red-500 text-white p-1.5 rounded-lg text-xs z-20 shadow-lg transition">
                                         🗑️
                                     </button>
                                 ` : ''}
@@ -358,17 +245,33 @@ function openSwimmerDetailModal(swimmer) {
     document.body.insertAdjacentHTML('beforeend', modalHTML);
 
     document.querySelectorAll('.photo-preview').forEach(img => {
-        img.addEventListener('click', () => {
-            openImageLightbox(img.dataset.url, img.dataset.title, img.dataset.date);
-        });
+        img.addEventListener('click', () => openImageLightbox(img.dataset.url, img.dataset.title, img.dataset.date));
     });
 
-    document.getElementById('close-swimmer-modal').addEventListener('click', () => {
+    document.getElementById('close-swimmer-modal')?.addEventListener('click', () => {
         document.getElementById('swimmer-detail-modal').remove();
     });
 }
 
+function applyFilters() {
+    const searchSwimmer = document.getElementById('search-swimmer');
+    const filterTournament = document.getElementById('filter-tournament');
+    
+    const swimmerQuery = searchSwimmer ? searchSwimmer.value.toLowerCase() : '';
+    const tournamentQuery = filterTournament ? filterTournament.value : '';
+
+    const filtered = allPosts.filter(post => {
+        const matchesSwimmer = (post.swimmer || '').toLowerCase().includes(swimmerQuery);
+        const matchesTournament = tournamentQuery === '' || post.tournament === tournamentQuery;
+        return matchesSwimmer && matchesTournament;
+    });
+
+    renderSwimmerCards(filtered);
+}
+
 function updateTournamentFilter() {
+    const filterTournament = document.getElementById('filter-tournament');
+    if (!filterTournament) return;
     filterTournament.innerHTML = '<option value="">Todos los Torneos</option>';
     LISTA_TORNEOS.forEach(t => {
         const option = document.createElement('option');
@@ -390,41 +293,130 @@ function loadPosts() {
             };
         });
         applyFilters();
-    }, err => {
-        console.error("Error al cargar publicaciones:", err);
-    });
+    }, err => console.error("Error al cargar publicaciones:", err));
 }
 
-function applyFilters() {
-    const swimmerQuery = searchSwimmer.value.toLowerCase();
-    const tournamentQuery = filterTournament.value;
+// --- INICIALIZACIÓN CUANDO EL DOM ESTÉ LISTO ---
+document.addEventListener('DOMContentLoaded', () => {
+    let isLoginMode = true;
 
-    const filtered = allPosts.filter(post => {
-        const matchesSwimmer = (post.swimmer || '').toLowerCase().includes(swimmerQuery);
-        const matchesTournament = tournamentQuery === '' || post.tournament === tournamentQuery;
-        return matchesSwimmer && matchesTournament;
+    const authModal = document.getElementById('auth-modal');
+    const authForm = document.getElementById('auth-form');
+    const authModalTitle = document.getElementById('auth-modal-title');
+    const authErrorMsg = document.getElementById('auth-error-msg');
+
+    const openLoginBtn = document.getElementById('open-login-btn');
+    const openRegisterBtn = document.getElementById('open-register-btn');
+    const closeAuthModalBtn = document.getElementById('close-auth-modal');
+    const logoutBtn = document.getElementById('logout-btn');
+
+    const openModalBtn = document.getElementById('open-modal-btn');
+    const closeModalBtn = document.getElementById('close-modal-btn');
+    const uploadModal = document.getElementById('upload-modal');
+    const formType = document.getElementById('form-type');
+    const imageContainer = document.getElementById('image-input-container');
+    const videoContainer = document.getElementById('video-input-container');
+    const uploadForm = document.getElementById('upload-form');
+
+    // Manejo del estado Auth
+    auth.onAuthStateChanged(user => {
+        currentUser = user;
+        const userInfo = document.getElementById('user-info');
+        const userEmailDisplay = document.getElementById('user-email-display');
+
+        if (user) {
+            if (openLoginBtn) openLoginBtn.classList.add('hidden');
+            if (openRegisterBtn) openRegisterBtn.classList.add('hidden');
+            if (userInfo) userInfo.classList.remove('hidden');
+            if (userEmailDisplay) userEmailDisplay.textContent = user.email;
+        } else {
+            if (openLoginBtn) openLoginBtn.classList.remove('hidden');
+            if (openRegisterBtn) openRegisterBtn.classList.remove('hidden');
+            if (userInfo) userInfo.classList.add('hidden');
+        }
+        applyFilters();
     });
 
-    renderSwimmerCards(filtered);
-}
+    // Eventos Modales de Auth
+    openLoginBtn?.addEventListener('click', () => {
+        isLoginMode = true;
+        if (authModalTitle) authModalTitle.textContent = "Iniciar Sesión";
+        authErrorMsg?.classList.add('hidden');
+        authModal?.classList.remove('hidden');
+    });
 
-searchSwimmer.addEventListener('input', applyFilters);
-filterTournament.addEventListener('change', applyFilters);
+    openRegisterBtn?.addEventListener('click', () => {
+        isLoginMode = false;
+        if (authModalTitle) authModalTitle.textContent = "Crear Cuenta";
+        authErrorMsg?.classList.add('hidden');
+        authModal?.classList.remove('hidden');
+    });
 
-// --- ENVÍO DE FORMULARIO VINCULANDO PROPIETARIO ---
-if (uploadForm) {
-    uploadForm.addEventListener('submit', async (e) => {
+    closeAuthModalBtn?.addEventListener('click', () => authModal?.classList.add('hidden'));
+    logoutBtn?.addEventListener('click', () => auth.signOut());
+
+    authForm?.addEventListener('submit', async (e) => {
         e.preventDefault();
+        const email = document.getElementById('auth-email').value;
+        const password = document.getElementById('auth-password').value;
+        if (authErrorMsg) authErrorMsg.classList.add('hidden');
 
+        try {
+            if (isLoginMode) {
+                await auth.signInWithEmailAndPassword(email, password);
+            } else {
+                await auth.createUserWithEmailAndPassword(email, password);
+            }
+            authForm.reset();
+            authModal?.classList.add('hidden');
+        } catch (err) {
+            if (authErrorMsg) {
+                authErrorMsg.textContent = err.message;
+                authErrorMsg.classList.remove('hidden');
+            }
+        }
+    });
+
+    // Eventos Modal de Carga
+    openModalBtn?.addEventListener('click', () => {
         if (!currentUser) {
-            alert("Debes iniciar sesión para realizar publicaciones.");
+            alert("Debes iniciar sesión para subir fotos o videos.");
+            return;
+        }
+        uploadModal?.classList.remove('hidden');
+    });
+
+    closeModalBtn?.addEventListener('click', () => uploadModal?.classList.add('hidden'));
+
+    formType?.addEventListener('change', (e) => {
+        if (e.target.value === 'image') {
+            imageContainer?.classList.remove('hidden');
+            videoContainer?.classList.add('hidden');
+        } else {
+            imageContainer?.classList.add('hidden');
+            videoContainer?.classList.remove('hidden');
+        }
+    });
+
+    // Formulario de Carga
+    uploadForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!currentUser) {
+            alert("Debes iniciar sesión.");
             return;
         }
 
-        submitBtn.disabled = true;
-        submitBtn.classList.add('opacity-50');
-        statusMsg.classList.remove('hidden', 'text-red-400', 'text-green-400');
-        statusMsg.classList.add('text-blue-400');
+        const submitBtn = document.getElementById('submit-btn');
+        const statusMsg = document.getElementById('status-msg');
+
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.classList.add('opacity-50');
+        }
+        if (statusMsg) {
+            statusMsg.classList.remove('hidden', 'text-red-400', 'text-green-400');
+            statusMsg.classList.add('text-blue-400');
+        }
 
         const swimmer = document.getElementById('form-swimmer').value;
         const tournament = document.getElementById('form-tournament').value;
@@ -436,11 +428,10 @@ if (uploadForm) {
             if (type === 'image') {
                 const fileInput = document.getElementById('form-file');
                 const files = Array.from(fileInput.files);
-
                 if (files.length === 0) throw new Error("Selecciona al menos una foto.");
 
                 for (let i = 0; i < files.length; i++) {
-                    statusMsg.textContent = `Subiendo foto ${i + 1} de ${files.length}...`;
+                    if (statusMsg) statusMsg.textContent = `Subiendo foto ${i + 1} de ${files.length}...`;
                     
                     const reader = new FileReader();
                     const base64Image = await new Promise(resolve => {
@@ -454,15 +445,14 @@ if (uploadForm) {
 
                     const res = await fetch("https://api.imgbb.com/1/upload", { method: "POST", body: formData });
                     const result = await res.json();
-
-                    if (!result.success) throw new Error("Error en ImgBB");
+                    if (!result.success) throw new Error("Error al subir a ImgBB");
 
                     await db.collection("publicaciones").add({
                         swimmer, tournament,
                         title: files.length > 1 ? `${title} (${i + 1}/${files.length})` : title,
                         date, type: 'image',
                         url: result.data.url,
-                        ownerId: currentUser.uid, // Guarda el ID del creador
+                        ownerId: currentUser.uid,
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
                 }
@@ -471,30 +461,42 @@ if (uploadForm) {
                 await db.collection("publicaciones").add({
                     swimmer, tournament, title, date,
                     type: 'video', url: youtubeUrl,
-                    ownerId: currentUser.uid, // Guarda el ID del creador
+                    ownerId: currentUser.uid,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
             }
 
-            statusMsg.className = "text-xs text-center font-medium text-green-400";
-            statusMsg.textContent = "¡Cargado con éxito!";
+            if (statusMsg) {
+                statusMsg.className = "text-xs text-center font-medium text-green-400";
+                statusMsg.textContent = "¡Cargado con éxito!";
+            }
 
             setTimeout(() => {
                 uploadForm.reset();
-                if (modal) modal.classList.add('hidden');
-                submitBtn.disabled = false;
-                submitBtn.classList.remove('opacity-50');
-                statusMsg.classList.add('hidden');
+                if (uploadModal) uploadModal.classList.add('hidden');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.classList.remove('opacity-50');
+                }
+                if (statusMsg) statusMsg.classList.add('hidden');
             }, 1500);
 
         } catch (err) {
-            statusMsg.className = "text-xs text-center font-medium text-red-400";
-            statusMsg.textContent = err.message || "Error al subir.";
-            submitBtn.disabled = false;
-            submitBtn.classList.remove('opacity-50');
+            if (statusMsg) {
+                statusMsg.className = "text-xs text-center font-medium text-red-400";
+                statusMsg.textContent = err.message || "Error al subir.";
+            }
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-50');
+            }
         }
     });
-}
 
-// Iniciar app
-loadPosts();
+    // Filtros
+    document.getElementById('search-swimmer')?.addEventListener('input', applyFilters);
+    document.getElementById('filter-tournament')?.addEventListener('change', applyFilters);
+
+    // Cargar datos
+    loadPosts();
+});
