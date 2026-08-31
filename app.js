@@ -400,7 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
     closeAuthModalBtn?.addEventListener('click', () => authModal?.classList.add('hidden'));
     logoutBtn?.addEventListener('click', () => auth.signOut());
 
-    // Submit Login / Registro
+   // Submit Login / Registro
     authForm?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('auth-email').value;
@@ -421,23 +421,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 const userCredential = await auth.createUserWithEmailAndPassword(email, password);
                 const user = userCredential.user;
 
-                // 2. Guardar perfil en la colección 'usuarios'
-                await db.collection("usuarios").doc(user.uid).set({
-                    email: email,
-                    swimmer: swimmerName,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                // 2. Intentar guardar perfil en Firestore (si falla, atrapamos el error pero continuamos al correo)
+                try {
+                    await db.collection("usuarios").doc(user.uid).set({
+                        email: email,
+                        swimmer: swimmerName,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                } catch (dbError) {
+                    console.warn("No se pudo guardar la info extendida en Firestore:", dbError);
+                }
 
-                // 3. Enviar correo de verificación
+                // 3. Enviar correo de verificación obligatorio
                 await user.sendEmailVerification();
 
-                // 4. Cerrar sesión inmediatamente para obligar al inicio manual tras verificación
+                // 4. Cerrar sesión automáticamente para exigir verificación/reingreso
                 await auth.signOut();
 
                 authForm.reset();
                 authModal?.classList.add('hidden');
 
-                alert(`¡Registro Exitoso!\n\nTe hemos enviado un correo de confirmación a ${email}.\nPor favor, revisa tu bandeja de entrada o carpeta SPAM, abre el enlace y luego inicia sesión.`);
+                alert(`¡Registro Exitoso!\n\nSe ha enviado un correo con el link de verificación a: ${email}\n\nPor favor, revisa tu bandeja de entrada o carpeta de SPAM, haz clic en el enlace para confirmar tu cuenta y vuelve a iniciar sesión.`);
             }
         } catch (err) {
             console.error("Error Auth:", err);
