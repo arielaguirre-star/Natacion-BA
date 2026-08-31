@@ -25,7 +25,7 @@ const LISTA_TORNEOS = [
 ];
 
 let currentUser = null;
-let currentUserSwimmer = ""; // Nombre del nadador vinculado a la cuenta actual
+let currentUserSwimmer = ""; 
 let allPosts = [];
 
 // Cargar información del perfil del usuario (Nadador vinculado)
@@ -43,16 +43,24 @@ async function fetchUserProfile(uid) {
     }
 }
 
-// --- ELIMINAR PUBLICACIÓN CON VERIFICACIÓN DE PERMISO ---
+// Función auxiliar para comparar nombres sin importar mayúsculas/espacios
+function cleanString(str) {
+    return (str || "").toLowerCase().trim().replace(/\s+/g, ' ');
+}
+
+// --- ELIMINAR PUBLICACIÓN CON VERIFICACIÓN FLEXIBLE ---
 window.deletePost = async function(postId, postSwimmer, ownerId) {
-    if (!currentUser) return;
+    if (!currentUser) {
+        alert("Debes iniciar sesión para eliminar contenido.");
+        return;
+    }
 
-    // Se valida que sea dueño de la foto O que la foto pertenezca a su nadador registrado
     const isOwner = currentUser.uid === ownerId;
-    const isSwimmerMatch = currentUserSwimmer && currentUserSwimmer.toLowerCase().trim() === (postSwimmer || "").toLowerCase().trim();
+    const isSwimmerMatch = currentUserSwimmer && cleanString(currentUserSwimmer) === cleanString(postSwimmer);
 
+    // Permite borrar si es el dueño O si la foto pertenece al nadador registrado por el usuario
     if (!isOwner && !isSwimmerMatch) {
-        alert("No tienes permisos. Solo puedes eliminar publicaciones asociadas a tu nadador registrado.");
+        alert(`No tienes permiso para borrar esta foto. Tu cuenta está vinculada a "${currentUserSwimmer}" y esta foto pertenece a "${postSwimmer}".`);
         return;
     }
 
@@ -63,16 +71,16 @@ window.deletePost = async function(postId, postSwimmer, ownerId) {
             document.getElementById('swimmer-detail-modal')?.remove();
         } catch (err) {
             console.error("Error al eliminar:", err);
-            alert("No fue posible eliminar este elemento.");
+            alert("No fue posible eliminar este elemento: " + err.message);
         }
     }
 };
 
 function normalizeTournamentName(rawName) {
     if (!rawName) return "Torneo General";
-    const cleanRaw = rawName.toString().trim().toLowerCase().replace(/\s+/g, ' ');
+    const cleanRaw = cleanString(rawName);
     const match = LISTA_TORNEOS.find(officialName => {
-        const cleanOfficial = officialName.toLowerCase();
+        const cleanOfficial = cleanString(officialName);
         return cleanRaw === cleanOfficial || cleanRaw.replace(/\s+/g, '') === cleanOfficial.replace(/\s+/g, '');
     });
     return match || rawName.trim();
@@ -197,15 +205,17 @@ function openSwimmerDetailModal(swimmer) {
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     ${photos.map((p) => {
                         const isOwner = currentUser && currentUser.uid === p.ownerId;
-                        const isSwimmerMatch = currentUser && currentUserSwimmer && currentUserSwimmer.toLowerCase().trim() === (p.swimmer || "").toLowerCase().trim();
+                        const isSwimmerMatch = currentUser && currentUserSwimmer && cleanString(currentUserSwimmer) === cleanString(p.swimmer);
                         const canDelete = isOwner || isSwimmerMatch;
+
+                        const safeSwimmer = (p.swimmer || "").replace(/'/g, "\\'");
 
                         return `
                         <div class="group relative rounded-lg overflow-hidden bg-slate-950 aspect-square border border-slate-800">
                             <img src="${p.url}" alt="${p.title}" class="w-full h-full object-cover photo-preview cursor-pointer group-hover:scale-110 transition duration-300" data-url="${p.url}" data-title="${p.title}" data-date="${p.date}">
                             
                             ${canDelete ? `
-                                <button onclick="window.deletePost('${p.id}', '${p.swimmer.replace(/'/g, "\\'")}', '${p.ownerId}')" class="absolute top-2 right-2 bg-red-600 hover:bg-red-500 text-white p-1.5 rounded-lg text-xs z-20 shadow-lg transition" title="Eliminar foto">
+                                <button onclick="window.deletePost('${p.id}', '${safeSwimmer}', '${p.ownerId || ''}')" class="absolute top-2 right-2 bg-red-600 hover:bg-red-500 text-white p-1.5 rounded-lg text-xs z-20 shadow-lg transition" title="Eliminar foto">
                                     🗑️
                                 </button>
                             ` : ''}
@@ -232,13 +242,14 @@ function openSwimmerDetailModal(swimmer) {
                     ${videos.map(v => {
                         const yt = getYoutubeDetails(v.url);
                         const isOwner = currentUser && currentUser.uid === v.ownerId;
-                        const isSwimmerMatch = currentUser && currentUserSwimmer && currentUserSwimmer.toLowerCase().trim() === (v.swimmer || "").toLowerCase().trim();
+                        const isSwimmerMatch = currentUser && currentUserSwimmer && cleanString(currentUserSwimmer) === cleanString(v.swimmer);
                         const canDelete = isOwner || isSwimmerMatch;
+                        const safeSwimmer = (v.swimmer || "").replace(/'/g, "\\'");
 
                         return `
                             <div class="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden relative">
                                 ${canDelete ? `
-                                    <button onclick="window.deletePost('${v.id}', '${v.swimmer.replace(/'/g, "\\'")}', '${v.ownerId}')" class="absolute top-2 right-2 bg-red-600 hover:bg-red-500 text-white p-1.5 rounded-lg text-xs z-20 shadow-lg transition" title="Eliminar video">
+                                    <button onclick="window.deletePost('${v.id}', '${safeSwimmer}', '${v.ownerId || ''}')" class="absolute top-2 right-2 bg-red-600 hover:bg-red-500 text-white p-1.5 rounded-lg text-xs z-20 shadow-lg transition" title="Eliminar video">
                                         🗑️
                                     </button>
                                 ` : ''}
@@ -368,7 +379,6 @@ document.addEventListener('DOMContentLoaded', () => {
         applyFilters();
     });
 
-    // Abrir Login
     openLoginBtn?.addEventListener('click', () => {
         isLoginMode = true;
         if (authModalTitle) authModalTitle.textContent = "Iniciar Sesión";
@@ -378,7 +388,6 @@ document.addEventListener('DOMContentLoaded', () => {
         authModal?.classList.remove('hidden');
     });
 
-    // Abrir Registro
     openRegisterBtn?.addEventListener('click', () => {
         isLoginMode = false;
         if (authModalTitle) authModalTitle.textContent = "Crear Cuenta de Nadador";
@@ -391,7 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
     closeAuthModalBtn?.addEventListener('click', () => authModal?.classList.add('hidden'));
     logoutBtn?.addEventListener('click', () => auth.signOut());
 
-    // Submit Auth (Login / Registro)
+    // Submit Login / Registro
     authForm?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('auth-email').value;
@@ -403,11 +412,11 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             if (isLoginMode) {
                 await auth.signInWithEmailAndPassword(email, password);
+                authForm.reset();
+                authModal?.classList.add('hidden');
             } else {
-                if (!swimmerName) {
-                    throw new Error("Debes indicar el nombre del nadador.");
-                }
-                
+                if (!swimmerName) throw new Error("Debes indicar el nombre del nadador.");
+
                 // 1. Crear usuario en Firebase Auth
                 const userCredential = await auth.createUserWithEmailAndPassword(email, password);
                 const user = userCredential.user;
@@ -419,16 +428,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
-                // 3. Enviar correo de verificación con link de reingreso/activación
+                // 3. Enviar correo de verificación
                 await user.sendEmailVerification();
 
-                // 4. Cartel de registro exitoso
-                alert(`¡Registro Exitoso!\n\nSe ha enviado un correo de verificación a ${email}.\nRevisa tu bandeja de entrada o SPAM para confirmar tu cuenta mediante el enlace facilitado.`);
-            }
+                // 4. Cerrar sesión inmediatamente para obligar al inicio manual tras verificación
+                await auth.signOut();
 
-            authForm.reset();
-            authModal?.classList.add('hidden');
+                authForm.reset();
+                authModal?.classList.add('hidden');
+
+                alert(`¡Registro Exitoso!\n\nTe hemos enviado un correo de confirmación a ${email}.\nPor favor, revisa tu bandeja de entrada o carpeta SPAM, abre el enlace y luego inicia sesión.`);
+            }
         } catch (err) {
+            console.error("Error Auth:", err);
             if (authErrorMsg) {
                 authErrorMsg.textContent = err.message;
                 authErrorMsg.classList.remove('hidden');
@@ -443,7 +455,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Si el usuario tiene un nadador asociado por defecto, se auto-completa
         const swimmerInput = document.getElementById('form-swimmer');
         if (swimmerInput && currentUserSwimmer) {
             swimmerInput.value = currentUserSwimmer;
@@ -559,7 +570,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Filtros
     document.getElementById('search-swimmer')?.addEventListener('input', applyFilters);
     document.getElementById('filter-tournament')?.addEventListener('change', applyFilters);
 
