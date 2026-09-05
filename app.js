@@ -16,7 +16,7 @@ if (!firebase.apps.length) {
 const db = firebase.firestore();
 const auth = firebase.auth();
 
-const IMGBB_API_KEY = "ccbc65f4bea21908a11adb119c673316"; 
+
 
 const LISTA_TORNEOS = [
     "Metro 1", "Metro 2", "Metro 3", "Metro 4", 
