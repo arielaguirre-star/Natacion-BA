@@ -609,14 +609,22 @@ document.addEventListener('DOMContentLoaded', () => {
                         reader.readAsDataURL(files[i]);
                         reader.onload = e => resolve(e.target.result.split(',')[1]);
                     });
+                    // ANTES (Directo a ImgBB):
+                    //const formData = new FormData();
+                    //formData.append("key", IMGBB_API_KEY);
+                    //formData.append("image", base64Image);
 
-                    const formData = new FormData();
-                    formData.append("key", IMGBB_API_KEY);
-                    formData.append("image", base64Image);
+                    //const res = await fetch("https://api.imgbb.com/1/upload", { method: "POST", body: formData });
+                    // AHORA (A través de tu servidor seguro en Vercel):
+const res = await fetch("https://vercel.com/etiqueta-negra/natacion-ba/9t17zjJ1LRgy2V2r2gXxcwbxeBd2", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ image: base64Image })
+});
 
-                    const res = await fetch("https://api.imgbb.com/1/upload", { method: "POST", body: formData });
-                    const result = await res.json();
-                    if (!result.success) throw new Error("Error al subir a ImgBB");
+const result = await res.json();
+if (!result.success) throw new Error("Error al subir la imagen");
+                   
 
                     await db.collection("publicaciones").add({
                         swimmer, 
