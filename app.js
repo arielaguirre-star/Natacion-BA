@@ -596,45 +596,44 @@ document.addEventListener('DOMContentLoaded', () => {
         const type = formType.value;
 
         try {
-            if (type === 'image') {
-                const fileInput = document.getElementById('form-file');
-                const files = Array.from(fileInput.files);
-                if (files.length === 0) throw new Error("Selecciona al menos una foto.");
+           if (type === 'image') {
+    const fileInput = document.getElementById('form-file');
+    const files = Array.from(fileInput.files);
+    if (files.length === 0) throw new Error("Selecciona al menos una foto.");
 
-                for (let i = 0; i < files.length; i++) {
-                    if (statusMsg) statusMsg.textContent = `Subiendo foto ${i + 1} de ${files.length}...`;
-                    
-                    const reader = new FileReader();
-                    const base64Image = await new Promise(resolve => {
-                        reader.readAsDataURL(files[i]);
-                        reader.onload = e => resolve(e.target.result.split(',')[1]);
-                    });
-                    // ANTES (Directo a ImgBB):
-                    //const formData = new FormData();
-                    //formData.append("key", IMGBB_API_KEY);
-                    //formData.append("image", base64Image);
+    for (let i = 0; i < files.length; i++) {
+        if (statusMsg) statusMsg.textContent = `Subiendo foto ${i + 1} de ${files.length}...`;
+        
+        // Convertir la imagen a Base64
+        const reader = new FileReader();
+        const base64Image = await new Promise(resolve => {
+            reader.readAsDataURL(files[i]);
+            reader.onload = e => resolve(e.target.result.split(',')[1]);
+        });
 
-                    //const res = await fetch("https://api.imgbb.com/1/upload", { method: "POST", body: formData });
-                    // AHORA (A través de tu servidor seguro en Vercel):
-const res = await fetch("https://natacion-ba.vercel.app/api/upload", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ image: base64Image })
-});
+        // Petición a tu servidor seguro de Vercel
+        const res = await fetch("https://natacion-ba.vercel.app/api/upload", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image: base64Image })
+        });
 
-const result = await res.json();
-if (!result.success) throw new Error("Error al subir la imagen");
-                   
+        const result = await res.json();
+        
+        if (!result.success) {
+            throw new Error(result.error || "Error al subir la imagen.");
+        }
 
-                    await db.collection("publicaciones").add({
-                        swimmer, 
-                        tournament,
-                        type: 'image',
-                        url: result.data.url,
-                        ownerId: currentUser.uid,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                }
+        // Guardar la foto en Firestore
+        await db.collection("publicaciones").add({
+            swimmer, 
+            tournament,
+            type: 'image',
+            url: result.data.url,
+            ownerId: currentUser.uid,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    }
             } else if (type === 'video') {
                 const youtubeUrl = document.getElementById('form-youtube-url').value;
                 await db.collection("publicaciones").add({
