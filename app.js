@@ -616,7 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     //const res = await fetch("https://api.imgbb.com/1/upload", { method: "POST", body: formData });
                     // AHORA (A través de tu servidor seguro en Vercel):
-const res = await fetch("https://natacion-ba.vercel.app/", {
+const res = await fetch("https://natacion-ba.vercel.app/api/upload", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ image: base64Image })
