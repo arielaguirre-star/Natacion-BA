@@ -1,6 +1,6 @@
 export default async function handler(req, res) {
-    // Permitir solicitudes CORS para que tu web en GitHub Pages pueda conectarse
-    res.setHeader('Access-Control-Allow-Credentials', true);
+    // Configurar cabeceras CORS para permitir peticiones desde cualquier origen (ej. GitHub Pages)
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
     res.setHeader(
@@ -8,9 +8,9 @@ export default async function handler(req, res) {
         'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
     );
 
+    // Responder inmediatamente a la verificación previa (preflight OPTIONS) del navegador
     if (req.method === 'OPTIONS') {
-        res.status(200).end();
-        return;
+        return res.status(200).end();
     }
 
     if (req.method !== 'POST') {
@@ -19,12 +19,10 @@ export default async function handler(req, res) {
 
     try {
         const { image } = req.body;
-        
-        // Obtiene la API Key desde la variable de entorno oculta de Vercel
         const IMGBB_API_KEY = process.env.IMGBB_API_KEY;
 
         if (!IMGBB_API_KEY) {
-            return res.status(500).json({ error: 'Falta la API Key en el servidor.' });
+            return res.status(500).json({ error: 'Falta configurar la API Key en las variables de entorno de Vercel.' });
         }
 
         const formData = new URLSearchParams();
