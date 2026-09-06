@@ -1,5 +1,4 @@
-// --- CONFIGURACIÓN DE FIREBASE E IMGBB ---
-
+// --- CONFIGURACIÓN DE FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyCs6WLXvimzgnfl5OxfYoDU4EAEYxJxaOY",
     authDomain: "natacionba-3b263.firebaseapp.com",
@@ -16,7 +15,8 @@ if (!firebase.apps.length) {
 const db = firebase.firestore();
 const auth = firebase.auth();
 
-
+// URL pública de tu backend en Vercel
+const VERCEL_API_URL = "https://natacion-ba.vercel.app/api/upload";
 
 const LISTA_TORNEOS = [
     "Metro 1", "Metro 2", "Metro 3", "Metro 4", 
@@ -25,7 +25,7 @@ const LISTA_TORNEOS = [
 ];
 
 let currentUser = null;
-let currentUserSwimmer = ""; 
+let currentUserSwimmer = "";
 let allPosts = [];
 
 // Formatear y estandarizar nombres de nadadores
@@ -40,7 +40,11 @@ function formatSwimmerName(name) {
         .join(' ');
 }
 
-// Cargar información del perfil del usuario (Nadador vinculado)
+function cleanString(str) {
+    return (str || "").toLowerCase().trim().replace(/\s+/g, ' ');
+}
+
+// Cargar información del perfil
 async function fetchUserProfile(uid) {
     try {
         const userDoc = await db.collection("usuarios").doc(uid).get();
@@ -55,11 +59,40 @@ async function fetchUserProfile(uid) {
     }
 }
 
-function cleanString(str) {
-    return (str || "").toLowerCase().trim().replace(/\s+/g, ' ');
+// Compresión de imagen antes del envío
+function compressImage(file, maxWidth = 1600, quality = 0.8) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                if (width > maxWidth) {
+                    height = Math.round((height * maxWidth) / width);
+                    width = maxWidth;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                const dataUrl = canvas.toDataURL('image/jpeg', quality);
+                resolve(dataUrl.split(',')[1]);
+            };
+            img.onerror = (err) => reject(err);
+        };
+        reader.onerror = (err) => reject(err);
+    });
 }
 
-// --- ELIMINAR PUBLICACIÓN ---
+// Funciones globales
 window.deletePost = async function(postId, postSwimmer, ownerId) {
     if (!currentUser) {
         alert("Debes iniciar sesión para eliminar contenido.");
@@ -342,7 +375,7 @@ function loadPosts() {
     }, err => console.error("Error al cargar publicaciones:", err));
 }
 
-// --- INICIALIZACIÓN Y AUTENTICACIÓN ---
+// --- INICIALIZACIÓN ---
 document.addEventListener('DOMContentLoaded', () => {
     let isLoginMode = true;
 
@@ -356,7 +389,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const openLoginBtn = document.getElementById('open-login-btn');
     const openRegisterBtn = document.getElementById('open-register-btn');
     const closeAuthModalBtn = document.getElementById('close-auth-modal');
+    
+    // Asignación directa del evento de Cierre de Sesión
     const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.onclick = async () => {
+            try {
+                await auth.signOut();
+                window.location.reload();
+            } catch (err) {
+                console.error("Error al cerrar sesión:", err);
+            }
+        };
+    }
 
     const guestControls = document.getElementById('guest-controls');
     const userControls = document.getElementById('user-controls');
@@ -417,9 +462,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     closeAuthModalBtn?.addEventListener('click', () => authModal?.classList.add('hidden'));
-    logoutBtn?.addEventListener('click', () => auth.signOut());
 
-    // Submit Login / Registro Tradicional
+    // Submit Form Autenticación
     authForm?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('auth-email').value;
@@ -596,44 +640,40 @@ document.addEventListener('DOMContentLoaded', () => {
         const type = formType.value;
 
         try {
-           if (type === 'image') {
-    const fileInput = document.getElementById('form-file');
-    const files = Array.from(fileInput.files);
-    if (files.length === 0) throw new Error("Selecciona al menos una foto.");
+            if (type === 'image') {
+                const fileInput = document.getElementById('form-file');
+                const files = Array.from(fileInput.files);
+                if (files.length === 0) throw new Error("Selecciona al menos una foto.");
 
-    for (let i = 0; i < files.length; i++) {
-        if (statusMsg) statusMsg.textContent = `Subiendo foto ${i + 1} de ${files.length}...`;
-        
-        // Convertir la imagen a Base64
-        const reader = new FileReader();
-        const base64Image = await new Promise(resolve => {
-            reader.readAsDataURL(files[i]);
-            reader.onload = e => resolve(e.target.result.split(',')[1]);
-        });
+                for (let i = 0; i < files.length; i++) {
+                    if (statusMsg) statusMsg.textContent = `Procesando foto ${i + 1} de ${files.length}...`;
+                    
+                    // Compresión automática de imagen antes de enviar
+                    const base64Image = await compressImage(files[i]);
 
-        // Petición a tu servidor seguro de Vercel
-        const res = await fetch("https://natacion-ba.vercel.app/api/upload", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ image: base64Image })
-        });
+                    if (statusMsg) statusMsg.textContent = `Subiendo foto ${i + 1} de ${files.length}...`;
 
-        const result = await res.json();
-        
-        if (!result.success) {
-            throw new Error(result.error || "Error al subir la imagen.");
-        }
+                    const res = await fetch(VERCEL_API_URL, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ image: base64Image })
+                    });
 
-        // Guardar la foto en Firestore
-        await db.collection("publicaciones").add({
-            swimmer, 
-            tournament,
-            type: 'image',
-            url: result.data.url,
-            ownerId: currentUser.uid,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-    }
+                    const result = await res.json();
+
+                    if (!res.ok || !result.success) {
+                        throw new Error(result.error || `Error del servidor (${res.status})`);
+                    }
+
+                    await db.collection("publicaciones").add({
+                        swimmer, 
+                        tournament,
+                        type: 'image',
+                        url: result.data.url,
+                        ownerId: currentUser.uid,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
             } else if (type === 'video') {
                 const youtubeUrl = document.getElementById('form-youtube-url').value;
                 await db.collection("publicaciones").add({
@@ -662,6 +702,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 1500);
 
         } catch (err) {
+            console.error("Error al subir:", err);
             if (statusMsg) {
                 statusMsg.className = "text-xs text-center font-medium text-red-400";
                 statusMsg.textContent = err.message || "Error al subir.";
